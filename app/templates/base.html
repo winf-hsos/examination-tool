@@ -7,7 +7,18 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css"
+      integrity="sha512-1BM8w9Wm0K6UyjmOYGUWZAXgY0x0JBoYxKxO6jwxKF1u9IiMaTZGi4ZTSdKCbFf8gIuwZPzH0JwS4gS2y2zYKw=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
     />
     <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}" />
     <script>
@@ -31,26 +42,46 @@
     {% block head_extra %}{% endblock %}
   </head>
   <body>
-    <header class="app-bar">
-      <div class="app-bar__content">
-        <a class="app-bar__brand" href="/">
-          <span aria-hidden="true">📝</span>
-          Examination Tool
-        </a>
-        <nav class="app-bar__nav">
-          <a href="/">Übersicht</a>
-          <a href="/students/import">Studierende importieren</a>
-          <a href="/tasks">Aufgaben</a>
-          <a href="/categories">Kategorien</a>
-          <a href="/exam-configurations/new">Neue Prüfung</a>
-        </nav>
-      </div>
+    <header>
+      <nav class="z-depth-1 app-nav">
+        <div class="nav-wrapper container">
+          <a class="brand-logo" href="/">
+            <span class="material-icons" aria-hidden="true">draw</span>
+            Examination Tool
+          </a>
+          <a href="#" data-target="mobile-nav" class="sidenav-trigger" aria-label="Navigation öffnen">
+            <span class="material-icons">menu</span>
+          </a>
+          <ul class="right hide-on-med-and-down">
+            <li><a href="/">Übersicht</a></li>
+            <li><a href="/students/import">Studierende importieren</a></li>
+            <li><a href="/tasks">Aufgaben</a></li>
+            <li><a href="/categories">Kategorien</a></li>
+            <li><a href="/exam-configurations/new">Neue Prüfung</a></li>
+          </ul>
+        </div>
+      </nav>
+      <ul class="sidenav" id="mobile-nav">
+        <li><a href="/">Übersicht</a></li>
+        <li><a href="/students/import">Studierende importieren</a></li>
+        <li><a href="/tasks">Aufgaben</a></li>
+        <li><a href="/categories">Kategorien</a></li>
+        <li><a href="/exam-configurations/new">Neue Prüfung</a></li>
+      </ul>
     </header>
-    <main>
+    <main class="app-main">
       <div class="container">
         {% block content %}{% endblock %}
       </div>
     </main>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"
+      integrity="sha512-CZ6PvUCaY/0ZUqKoU0uUUtSRm4jOvrlesBxgVjbBc088DujzUyi4QxMauPDXmgZxziWSr0IkLk1q0sY1b02sxQ=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+      defer
+    ></script>
+    <script src="{{ url_for('static', path='app.js') }}" defer></script>
     {% block scripts %}{% endblock %}
   </body>
 </html>

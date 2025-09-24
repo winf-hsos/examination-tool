@@ -5,63 +5,91 @@
 {% block content %}
   <h1 class="page-title">Kategorien verwalten</h1>
 
-  <div class="form-card" style="margin-bottom:2rem;">
+  <div class="card-panel form-card">
     <form method="post" action="/categories">
-      <div class="form-field">
-        <label for="new-category-name">Neue Hauptkategorie</label>
-        <input id="new-category-name" type="text" name="name" placeholder="z. B. Analysis" required />
-      </div>
-      <div class="form-actions">
-        <button class="button" type="submit">Kategorie anlegen</button>
+      <div class="row">
+        <div class="input-field col s12 m8">
+          <input id="new-category-name" type="text" name="name" required />
+          <label for="new-category-name">Neue Hauptkategorie</label>
+        </div>
+        <div class="col s12 m4 form-actions" style="margin-top: 0;">
+          <button class="btn waves-effect waves-light" type="submit">
+            <span class="material-icons left" aria-hidden="true">add</span>
+            Kategorie anlegen
+          </button>
+        </div>
       </div>
     </form>
   </div>
 
   {% if not categories %}
-    <div class="card">
-      <p>Noch keine Kategorien vorhanden. Lege eine erste Hauptkategorie an, um Aufgaben zu strukturieren.</p>
+    <div class="card-panel">
+      <p class="text-muted" style="margin: 0;">
+        Noch keine Kategorien vorhanden. Lege eine erste Hauptkategorie an, um Aufgaben zu strukturieren.
+      </p>
     </div>
   {% else %}
-    <div class="form-grid">
+    <ul class="category-tree">
       {% for category in categories %}
-        <article class="card">
-          <form class="inline-form" method="post" action="/categories">
-            <input type="hidden" name="category_id" value="{{ category.id }}" />
-            <label for="rename-{{ category.id }}">Kategorie</label>
-            <input id="rename-{{ category.id }}" name="name" type="text" value="{{ category.name }}" required />
-            <button class="button secondary small" type="submit">Umbenennen</button>
-          </form>
-
-          <div class="category-tree__actions">
-            <form class="inline-form" method="post" action="/categories/{{ category.id }}/subcategories">
-              <label for="new-sub-{{ category.id }}">Unterkategorie</label>
-              <input id="new-sub-{{ category.id }}" name="name" type="text" placeholder="Neue Unterkategorie" required />
-              <button class="button secondary small" type="submit">Hinzufügen</button>
+        <li class="category-node">
+          <div class="category-node__header">
+            <form class="inline-form" method="post" action="/categories">
+              <input type="hidden" name="category_id" value="{{ category.id }}" />
+              <div class="input-field" style="margin-bottom: 0;">
+                <input id="rename-{{ category.id }}" name="name" type="text" value="{{ category.name }}" required />
+                <label for="rename-{{ category.id }}" class="active">Kategorie</label>
+              </div>
+              <button class="btn btn-small btn-secondary waves-effect" type="submit">Umbenennen</button>
             </form>
-            <form method="post" action="/categories/{{ category.id }}/delete" onsubmit="return confirm('Kategorie wirklich löschen? Alle Unterkategorien werden ebenfalls entfernt.');">
-              <button class="button danger small" type="submit">Kategorie löschen</button>
+            <form
+              method="post"
+              action="/categories/{{ category.id }}/delete"
+              onsubmit="return confirm('Kategorie wirklich löschen? Alle Unterkategorien werden ebenfalls entfernt.');"
+            >
+              <button class="btn btn-small btn-danger waves-effect" type="submit">Kategorie löschen</button>
+            </form>
+          </div>
+
+          <div class="category-node__actions">
+            <form class="inline-form" method="post" action="/categories/{{ category.id }}/subcategories">
+              <div class="input-field" style="margin-bottom: 0;">
+                <input id="new-sub-{{ category.id }}" name="name" type="text" required />
+                <label for="new-sub-{{ category.id }}">Unterkategorie hinzufügen</label>
+              </div>
+              <button class="btn btn-small btn-secondary waves-effect" type="submit">Hinzufügen</button>
             </form>
           </div>
 
           {% if category.children %}
-            <ul class="category-tree" style="margin-top:1rem; border: none; box-shadow:none; padding:0;">
+            <ul class="category-node__children">
               {% for subcategory in category.children %}
-                <li>
-                  <form class="inline-form" method="post" action="/categories/{{ category.id }}/subcategories/{{ subcategory.id }}/rename">
-                    <input name="name" type="text" value="{{ subcategory.name }}" required />
-                    <button class="button secondary small" type="submit">Umbenennen</button>
+                <li class="category-node__child">
+                  <form
+                    class="inline-form"
+                    method="post"
+                    action="/categories/{{ category.id }}/subcategories/{{ subcategory.id }}/rename"
+                  >
+                    <div class="input-field" style="margin-bottom: 0;">
+                      <input name="name" id="rename-sub-{{ subcategory.id }}" type="text" value="{{ subcategory.name }}" required />
+                      <label for="rename-sub-{{ subcategory.id }}" class="active">Unterkategorie</label>
+                    </div>
+                    <button class="btn btn-small btn-secondary waves-effect" type="submit">Speichern</button>
                   </form>
-                  <form method="post" action="/categories/{{ category.id }}/subcategories/{{ subcategory.id }}/delete" onsubmit="return confirm('Unterkategorie wirklich löschen?');">
-                    <button class="button ghost small" type="submit">Entfernen</button>
+                  <form
+                    method="post"
+                    action="/categories/{{ category.id }}/subcategories/{{ subcategory.id }}/delete"
+                    onsubmit="return confirm('Unterkategorie wirklich löschen?');"
+                  >
+                    <button class="btn-flat waves-effect red-text text-darken-2" type="submit">Entfernen</button>
                   </form>
                 </li>
               {% endfor %}
             </ul>
           {% else %}
-            <p class="text-muted" style="margin-top:1rem;">Noch keine Unterkategorien angelegt.</p>
+            <p class="text-muted" style="margin-top: 1rem; margin-bottom: 0;">Noch keine Unterkategorien angelegt.</p>
           {% endif %}
-        </article>
+        </li>
       {% endfor %}
-    </div>
+    </ul>
   {% endif %}
 {% endblock %}

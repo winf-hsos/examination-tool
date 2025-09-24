@@ -4,19 +4,42 @@
 
 {% block head_extra %}
   <style>
-    header.topbar nav,
-    header.topbar .brand { display: none; }
-    body { background: #fff; }
-    main.container { max-width: 900px; }
+    nav.app-nav,
+    .sidenav,
+    .sidenav-trigger {
+      display: none !important;
+    }
+    body {
+      background: #f5f7fb;
+    }
+    .app-main {
+      padding-top: 2rem;
+    }
   </style>
 {% endblock %}
 
 {% block content %}
-  <section class="card" id="student-app" data-exam-id="{{ exam_id if exam_id else '' }}" data-live="{{ 'true' if live_mode else 'false' }}">
-    <h2 id="group-label">Prüfung</h2>
-    <div class="task-metadata">Diese Ansicht blendet Hinweise und Lösungen automatisch aus.</div>
-    <div id="tasks" class="exam-layout" style="margin-top:1.5rem;">
-      <p>Lade Aufgaben...</p>
+  <section
+    class="card"
+    id="student-app"
+    data-exam-id="{{ exam_id if exam_id else '' }}"
+    data-live="{{ 'true' if live_mode else 'false' }}"
+  >
+    <div class="card-content">
+      <h2 id="group-label" class="card-title" style="margin-bottom: 0.5rem;">Prüfung</h2>
+      <div class="task-metadata">Diese Ansicht blendet Hinweise und Lösungen automatisch aus.</div>
+      <div id="tasks" class="exam-task-grid" style="margin-top: 1.5rem;">
+        <div class="exam-task-card" style="text-align: center;">
+          <div class="preloader-wrapper small active">
+            <div class="spinner-layer spinner-blue-only">
+              <div class="circle-clipper left"><div class="circle"></div></div>
+              <div class="gap-patch"><div class="circle"></div></div>
+              <div class="circle-clipper right"><div class="circle"></div></div>
+            </div>
+          </div>
+          <p class="text-muted" style="margin-top: 1rem;">Lade Aufgaben…</p>
+        </div>
+      </div>
     </div>
   </section>
 {% endblock %}
@@ -26,45 +49,18 @@
     const appElement = document.getElementById('student-app');
     const tasksContainer = document.getElementById('tasks');
     const groupLabel = document.getElementById('group-label');
-    const examId = appElement.dataset.examId;
+    const initialExamId = appElement.dataset.examId;
     const isLive = appElement.dataset.live === 'true';
 
-    async function fetchExam() {
-      try {
-        const endpoint = isLive && !appElement.dataset.examId
-          ? '/api/exams/active'
-          : `/api/exams/${appElement.dataset.examId || examId}`;
-        const response = await fetch(endpoint);
-        if (!response.ok) {
-          if (response.status === 404 && isLive) {
-            groupLabel.textContent = 'Prüfung';
-            tasksContainer.innerHTML = '<p class="task-metadata">Aktuell ist keine Prüfung aktiv.</p>';
-            appElement.dataset.examId = '';
-            return;
-          }
-          throw new Error('Fehler beim Laden der Aufgaben');
-        }
-        const payload = await response.json();
-        renderExam(payload);
-        if (isLive) {
-          appElement.dataset.examId = payload.exam_id;
-        }
-      } catch (error) {
-        tasksContainer.innerHTML = `<p class="alert error">${error.message}</p>`;
-      }
-    }
-
-    function renderExam(exam) {
-      groupLabel.textContent = `Prüfung für ${exam.group.label}`;
-      if (!exam.tasks.length) {
-        tasksContainer.innerHTML = '<p>Keine Aufgaben verfügbar.</p>';
-        return;
-      }
-      tasksContainer.innerHTML = exam.tasks
+    function renderTasks(tasks) {
+      tasksContainer.innerHTML = tasks
         .map((task, index) => `
-          <article class="exam-task">
+          <article class="exam-task-card">
             <h2>${index + 1}. ${task.title}</h2>
-            <div class="task-metadata">${task.category}${task.subcategory ? ' · ' + task.subcategory : ''}</div>
+            <div class="task-metadata">
+              <span class="material-icons" aria-hidden="true">category</span>
+              ${task.category}${task.subcategory ? ' · ' + task.subcategory : ''}
+            </div>
             <div class="markdown">${task.statement_html}</div>
             ${task.image_urls && task.image_urls.length ? `
               <div class="task-images">
@@ -81,7 +77,47 @@
       }
     }
 
+    function renderEmptyState(message) {
+      tasksContainer.innerHTML = `
+        <article class="exam-task-card" style="text-align:center;">
+          <p class="text-muted">${message}</p>
+        </article>
+      `;
+    }
+
+    async function fetchExam() {
+      try {
+        const endpoint = isLive && !appElement.dataset.examId
+          ? '/api/exams/active'
+          : `/api/exams/${appElement.dataset.examId || initialExamId}`;
+        const response = await fetch(endpoint);
+        if (!response.ok) {
+          if (response.status === 404 && isLive) {
+            groupLabel.textContent = 'Prüfung';
+            renderEmptyState('Aktuell ist keine Prüfung aktiv.');
+            appElement.dataset.examId = '';
+            return;
+          }
+          throw new Error('Die Aufgaben konnten nicht geladen werden.');
+        }
+        const payload = await response.json();
+        groupLabel.textContent = `Prüfung für ${payload.group.label}`;
+        if (!payload.tasks.length) {
+          renderEmptyState('Keine Aufgaben verfügbar.');
+          return;
+        }
+        renderTasks(payload.tasks);
+        if (isLive) {
+          appElement.dataset.examId = payload.exam_id;
+        }
+      } catch (error) {
+        renderEmptyState(error.message || 'Die Aufgaben konnten nicht geladen werden.');
+      }
+    }
+
     fetchExam();
-    setInterval(fetchExam, 7000);
+    if (isLive) {
+      setInterval(fetchExam, 7000);
+    }
   </script>
 {% endblock %}

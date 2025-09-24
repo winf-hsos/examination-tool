@@ -5,33 +5,61 @@
 {% block content %}
   <h1 class="page-title">Neue Prüfungskonfiguration</h1>
 
-  <div class="form-card">
-    <form id="configuration-form" method="post" action="/exam-configurations">
-      <input type="hidden" name="requirements_json" id="requirements-json" />
-      <div class="form-grid">
-        <div class="form-field">
-          <label for="configuration-name">Name der Konfiguration</label>
-          <input id="configuration-name" name="name" type="text" placeholder="z. B. Abschlussklausur" required />
-        </div>
-        <div class="form-field">
-          <label for="target-difficulty">Durchschnittliches Schwierigkeitsniveau</label>
-          <input id="target-difficulty" name="target_difficulty" type="range" min="1" max="3" step="0.5" value="2" />
-          <div class="badge" id="target-difficulty-display">Stufe 2.0</div>
-        </div>
-      </div>
+  <div class="card form-card">
+    <div class="card-content">
+      <form id="configuration-form" method="post" action="/exam-configurations">
+        <input type="hidden" name="requirements_json" id="requirements-json" />
 
-      <div class="form-field">
-        <label>Kategorien &amp; Anzahl Aufgaben</label>
-        <p class="text-muted">Lege fest, aus welchen Kategorien wie viele Aufgaben automatisch gezogen werden sollen. Die Reihenfolge bestimmt zugleich die Priorität bei der Auswahl.</p>
-        <div id="requirements-list" class="form-grid"></div>
-        <button type="button" class="button secondary small" id="add-requirement">Kategorie hinzufügen</button>
-      </div>
+        <div class="row">
+          <div class="input-field col s12 m6">
+            <input id="configuration-name" name="name" type="text" placeholder="z. B. Abschlussklausur" required />
+            <label for="configuration-name">Name der Konfiguration</label>
+          </div>
+          <div class="input-field col s12 m6">
+            <label class="active" for="target-difficulty">Durchschnittliches Schwierigkeitsniveau</label>
+            <input type="hidden" id="target-difficulty" name="target_difficulty" value="2" />
+            <div
+              class="difficulty-segmented"
+              data-target-input="target-difficulty"
+              data-display-target="target-difficulty-display"
+            >
+              <input type="radio" name="difficulty-choice" id="difficulty-1" value="1" data-label="Stufe 1 – Grundlagen" />
+              <label for="difficulty-1">Stufe 1</label>
+              <input
+                type="radio"
+                name="difficulty-choice"
+                id="difficulty-2"
+                value="2"
+                data-label="Stufe 2 – Fortgeschritten"
+                checked
+              />
+              <label for="difficulty-2">Stufe 2</label>
+              <input type="radio" name="difficulty-choice" id="difficulty-3" value="3" data-label="Stufe 3 – Anspruchsvoll" />
+              <label for="difficulty-3">Stufe 3</label>
+            </div>
+            <span class="helper-text" id="target-difficulty-display">Stufe 2 – Fortgeschritten</span>
+          </div>
+        </div>
 
-      <div class="form-actions">
-        <a class="button ghost" href="/">Abbrechen</a>
-        <button type="submit" class="button">Konfiguration speichern</button>
-      </div>
-    </form>
+        <div class="section" style="margin-top: 1.5rem;">
+          <h2 class="card-title" style="font-size: 1.4rem;">Kategorien &amp; Anzahl Aufgaben</h2>
+          <p class="text-muted" style="margin-bottom: 1.5rem;">
+            Lege fest, aus welchen Kategorien wie viele Aufgaben automatisch gezogen werden sollen. Die Reihenfolge
+            bestimmt zugleich die Priorität bei der Auswahl.
+          </p>
+          <div id="requirements-list" class="requirement-grid"></div>
+          <button type="button" class="btn btn-secondary waves-effect" id="add-requirement">
+            <span class="material-icons left" aria-hidden="true">add_circle</span>
+            Kategorie hinzufügen
+          </button>
+        </div>
+
+        <div class="form-actions">
+          <a class="btn-flat waves-effect" href="/">Abbrechen</a>
+          <button type="submit" class="btn waves-effect waves-light">Konfiguration speichern</button>
+        </div>
+      </form>
+    </div>
   </div>
 {% endblock %}
 
@@ -39,25 +67,18 @@
   <script>
     const CATEGORY_OPTIONS = {{ category_options_json|safe }};
 
-    (function() {
+    document.addEventListener('DOMContentLoaded', () => {
+      let requirementIndex = 0;
       const listEl = document.getElementById('requirements-list');
       const addBtn = document.getElementById('add-requirement');
       const requirementsInput = document.getElementById('requirements-json');
-      const difficultyInput = document.getElementById('target-difficulty');
-      const difficultyDisplay = document.getElementById('target-difficulty-display');
-
-      const updateDifficultyDisplay = () => {
-        difficultyDisplay.textContent = `Stufe ${Number(difficultyInput.value).toFixed(1)}`;
-      };
-      difficultyInput.addEventListener('input', updateDifficultyDisplay);
-      updateDifficultyDisplay();
 
       function buildCategorySelect(selectedId) {
         const select = document.createElement('select');
         select.required = true;
         select.dataset.role = 'category';
         select.innerHTML = '<option value="" disabled selected>Kategorie wählen</option>';
-        CATEGORY_OPTIONS.forEach(option => {
+        CATEGORY_OPTIONS.forEach((option) => {
           const opt = document.createElement('option');
           opt.value = option.id;
           opt.textContent = option.name;
@@ -73,9 +94,9 @@
         const select = document.createElement('select');
         select.dataset.role = 'subcategory';
         select.innerHTML = '<option value="">Alle Unterkategorien</option>';
-        const category = CATEGORY_OPTIONS.find(option => String(option.id) === String(categoryId));
+        const category = CATEGORY_OPTIONS.find((option) => String(option.id) === String(categoryId));
         if (category && category.subcategories) {
-          category.subcategories.forEach(sub => {
+          category.subcategories.forEach((sub) => {
             const opt = document.createElement('option');
             opt.value = sub.id;
             opt.textContent = sub.name;
@@ -88,57 +109,66 @@
         return select;
       }
 
+      function createInputField(id, labelText, element) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'input-field';
+        element.id = id;
+        wrapper.appendChild(element);
+        const label = document.createElement('label');
+        label.setAttribute('for', id);
+        label.textContent = labelText;
+        label.classList.add('active');
+        wrapper.appendChild(label);
+        return wrapper;
+      }
+
       function createRequirementRow(initial) {
+        requirementIndex += 1;
         const row = document.createElement('div');
-        row.className = 'card requirement-row';
-        row.style.padding = '1rem';
-        row.style.display = 'grid';
-        row.style.gridTemplateColumns = 'repeat(auto-fit, minmax(180px, 1fr))';
-        row.style.gap = '0.75rem';
+        row.className = 'requirement-row';
 
-        const categoryField = document.createElement('div');
-        categoryField.className = 'form-field';
-        const categoryLabel = document.createElement('label');
-        categoryLabel.textContent = 'Kategorie';
         const categorySelect = buildCategorySelect(initial?.category_id);
-        categoryField.append(categoryLabel, categorySelect);
+        const categoryField = createInputField(`req-category-${requirementIndex}`, 'Kategorie', categorySelect);
 
-        const subcategoryField = document.createElement('div');
-        subcategoryField.className = 'form-field';
-        const subcategoryLabel = document.createElement('label');
-        subcategoryLabel.textContent = 'Unterkategorie';
-        const subcategorySelect = buildSubcategorySelect(initial?.category_id, initial?.subcategory_id);
-        subcategoryField.append(subcategoryLabel, subcategorySelect);
+        let subcategorySelect = buildSubcategorySelect(initial?.category_id, initial?.subcategory_id);
+        let subcategoryField = createInputField(
+          `req-subcategory-${requirementIndex}`,
+          'Unterkategorie',
+          subcategorySelect
+        );
 
-        const countField = document.createElement('div');
-        countField.className = 'form-field';
-        const countLabel = document.createElement('label');
-        countLabel.textContent = 'Aufgaben';
         const countInput = document.createElement('input');
         countInput.type = 'number';
         countInput.min = '1';
         countInput.value = initial?.question_count || 1;
         countInput.required = true;
         countInput.dataset.role = 'count';
-        countField.append(countLabel, countInput);
+        const countField = createInputField(`req-count-${requirementIndex}`, 'Aufgaben', countInput);
 
         const removeField = document.createElement('div');
-        removeField.className = 'form-field';
-        removeField.style.alignSelf = 'end';
+        removeField.className = 'requirement-actions';
         const removeBtn = document.createElement('button');
         removeBtn.type = 'button';
-        removeBtn.className = 'button ghost small';
+        removeBtn.className = 'btn-flat waves-effect red-text text-darken-1';
         removeBtn.textContent = 'Entfernen';
         removeBtn.addEventListener('click', () => {
           row.remove();
         });
-        removeField.append(removeBtn);
+        removeField.appendChild(removeBtn);
 
         categorySelect.addEventListener('change', () => {
           const current = subcategorySelect.value;
-          const nextSelect = buildSubcategorySelect(categorySelect.value, current);
-          nextSelect.dataset.role = 'subcategory';
-          subcategorySelect.replaceWith(nextSelect);
+          const replacement = buildSubcategorySelect(categorySelect.value, current);
+          replacement.dataset.role = 'subcategory';
+          const newField = createInputField(
+            `req-subcategory-${requirementIndex}`,
+            'Unterkategorie',
+            replacement
+          );
+          row.replaceChild(newField, subcategoryField);
+          subcategorySelect = replacement;
+          subcategoryField = newField;
+          window.AppUI?.refresh?.(newField);
         });
 
         row.append(categoryField, subcategoryField, countField, removeField);
@@ -148,19 +178,20 @@
       function addRequirement(initial) {
         const row = createRequirementRow(initial);
         listEl.appendChild(row);
+        window.AppUI?.refresh?.(row);
       }
 
       addBtn.addEventListener('click', () => addRequirement());
       addRequirement();
 
-      document.getElementById('configuration-form').addEventListener('submit', event => {
+      document.getElementById('configuration-form').addEventListener('submit', (event) => {
         const rows = Array.from(listEl.querySelectorAll('.requirement-row'));
         if (!rows.length) {
           event.preventDefault();
-          alert('Bitte füge mindestens eine Kategorie hinzu.');
+          M.toast({ html: 'Bitte füge mindestens eine Kategorie hinzu.', displayLength: 3000 });
           return;
         }
-        const requirements = rows.map(row => {
+        const requirements = rows.map((row) => {
           const categorySelect = row.querySelector('[data-role="category"]');
           const subcategorySelect = row.querySelector('[data-role="subcategory"]');
           const countInput = row.querySelector('[data-role="count"]');
@@ -170,13 +201,13 @@
             question_count: countInput.value || 1,
           };
         });
-        if (requirements.some(req => !req.category_id)) {
+        if (requirements.some((req) => !req.category_id)) {
           event.preventDefault();
-          alert('Bitte wähle für jede Zeile eine Kategorie aus.');
+          M.toast({ html: 'Bitte wähle für jede Zeile eine Kategorie aus.', displayLength: 3000 });
           return;
         }
         requirementsInput.value = JSON.stringify(requirements);
       });
-    })();
+    });
   </script>
 {% endblock %}
