@@ -42,38 +42,31 @@
     {% block head_extra %}{% endblock %}
   </head>
   <body>
-    <header>
-      <nav class="z-depth-1 app-nav">
-        <div class="nav-wrapper container">
-          <a class="brand-logo" href="/">
-            <span class="material-icons" aria-hidden="true">draw</span>
-            Examination Tool
-          </a>
-          <a href="#" data-target="mobile-nav" class="sidenav-trigger" aria-label="Navigation öffnen">
-            <span class="material-icons">menu</span>
-          </a>
-          <ul class="right hide-on-med-and-down">
-            <li><a href="/">Übersicht</a></li>
-            <li><a href="/students/import">Studierende importieren</a></li>
-            <li><a href="/tasks">Aufgaben</a></li>
-            <li><a href="/categories">Kategorien</a></li>
-            <li><a href="/exam-configurations/new">Neue Prüfung</a></li>
-          </ul>
-        </div>
-      </nav>
-      <ul class="sidenav" id="mobile-nav">
-        <li><a href="/">Übersicht</a></li>
-        <li><a href="/students/import">Studierende importieren</a></li>
-        <li><a href="/tasks">Aufgaben</a></li>
-        <li><a href="/categories">Kategorien</a></li>
-        <li><a href="/exam-configurations/new">Neue Prüfung</a></li>
-      </ul>
-    </header>
-    <main class="app-main">
-      <div class="container">
-        {% block content %}{% endblock %}
-      </div>
-    </main>
+    <div id="app" v-cloak>
+      <app-shell :nav-links="navLinks" :current-path="currentPath" :brand="brand">
+        <template #default>
+          {% block content %}{% endblock %}
+        </template>
+      </app-shell>
+    </div>
+    <script>
+      window.__APP_INITIAL_STATE__ = {{ {
+        "currentPath": request.url.path,
+        "navLinks": [
+          {"label": "Übersicht", "href": "/"},
+          {"label": "Studierende importieren", "href": "/students/import"},
+          {"label": "Aufgaben", "href": "/tasks"},
+          {"label": "Kategorien", "href": "/categories"},
+          {"label": "Neue Prüfung", "href": "/exam-configurations/new"},
+        ],
+        "brand": {
+          "title": "Examination Tool",
+          "href": "/",
+          "icon": "draw",
+          "subtitle": "Prüfungen planen & begleiten"
+        }
+      } | tojson }};
+    </script>
     <script
       src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"
       integrity="sha512-NiWqa2rceHnN3Z5j6mSAvbwwg3tiwVNxiAQaaSMSXnRRDh5C2mk/+sKQRw8qjV1vN4nf8iK2a0b048PnHbyx+Q=="
@@ -81,6 +74,7 @@
       referrerpolicy="no-referrer"
       defer
     ></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js" defer></script>
     <script src="{{ url_for('static', path='app.js') }}" defer></script>
     {% block scripts %}{% endblock %}
   </body>
