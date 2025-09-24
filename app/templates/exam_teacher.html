@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Prüfung #{{ exam.exam_id }} · Examination Tool{% endblock %}
+
+{% block content %}
+  <section class="card">
+    <header style="display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;">
+      <div>
+        <h2>Prüfung für {{ exam.group.label }}</h2>
+        <div class="task-metadata">
+          Studierende:
+          {% for student in exam.group.students %}
+            {{ student.full_name }}{% if not loop.last %}, {% endif %}
+          {% endfor %}
+        </div>
+        <div class="task-metadata">Gestartet am {{ exam.started_at.strftime('%d.%m.%Y %H:%M') }} Uhr</div>
+      </div>
+      <div style="display:flex; gap:0.5rem;">
+        <a class="button secondary" target="_blank" href="/exams/{{ exam.exam_id }}/student">Studierendenansicht öffnen</a>
+        <form method="post" action="/exams/{{ exam.exam_id }}/regenerate" onsubmit="return confirm('Aufgaben neu auslosen?');">
+          <button type="submit">Neue Aufgaben auslosen</button>
+        </form>
+      </div>
+    </header>
+    <div class="exam-layout" style="margin-top:1.5rem;">
+      {% for task in exam.tasks %}
+        <article class="exam-task">
+          <h2>{{ loop.index }}. {{ task.title }}</h2>
+          <div class="task-metadata">{{ task.category }}{% if task.subcategory %} · {{ task.subcategory }}{% endif %}</div>
+          <div class="markdown">{{ task.statement_html | safe }}</div>
+          {% if task.hints_html %}
+            <div class="section-title">Hinweise</div>
+            <div class="markdown">{{ task.hints_html | safe }}</div>
+          {% endif %}
+          {% if task.solution_html %}
+            <div class="section-title">Lösung</div>
+            <div class="markdown">{{ task.solution_html | safe }}</div>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}
