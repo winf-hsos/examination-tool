@@ -4,12 +4,23 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{% block title %}Examination Tool{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+    />
     <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}" />
     <script>
       window.MathJax = {
         tex: {
-          inlineMath: [['$', '$'], ['\\(', '\\)']],
-          displayMath: [['$$', '$$'], ['\\[', '\\]']]
+          inlineMath: [
+            ['$', '$'],
+            ['\\(', '\\)']
+          ],
+          displayMath: [
+            ['$$', '$$'],
+            ['\\[', '\\]']
+          ]
         },
         options: {
           skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
@@ -20,19 +31,25 @@
     {% block head_extra %}{% endblock %}
   </head>
   <body>
-    <header class="topbar">
-      <div class="container">
-        <h1 class="brand"><a href="/">Examination Tool</a></h1>
-        <nav>
+    <header class="app-bar">
+      <div class="app-bar__content">
+        <a class="app-bar__brand" href="/">
+          <span aria-hidden="true">📝</span>
+          Examination Tool
+        </a>
+        <nav class="app-bar__nav">
           <a href="/">Übersicht</a>
           <a href="/students/import">Studierende importieren</a>
           <a href="/tasks">Aufgaben</a>
           <a href="/categories">Kategorien</a>
+          <a href="/exam-configurations/new">Neue Prüfung</a>
         </nav>
       </div>
     </header>
-    <main class="container">
-      {% block content %}{% endblock %}
+    <main>
+      <div class="container">
+        {% block content %}{% endblock %}
+      </div>
     </main>
     {% block scripts %}{% endblock %}
   </body>

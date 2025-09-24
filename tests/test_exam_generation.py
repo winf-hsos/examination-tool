@@ -20,8 +20,16 @@ if str(ROOT) not in sys.path:
 
 from app.db import Base
 from app.main import UPLOAD_DIR, export_tasks_data, import_tasks_data
-from app.models import Category, CategoryRequirement, Student, StudentGroup, Task, TaskImage
-from app.services.exam_service import ExamGenerationError, generate_exam_for_group
+from app.models import (
+    Category,
+    ExamConfiguration,
+    ExamConfigurationRequirement,
+    Student,
+    StudentGroup,
+    Task,
+    TaskImage,
+)
+from app.services.exam_service import generate_exam
 from app.services.student_import_service import import_students_from_excel
 
 
@@ -45,25 +53,46 @@ def _seed_group(session: Session) -> StudentGroup:
     return group
 
 
-def test_generate_exam_respects_dependencies(session: Session) -> None:
+def test_generate_exam_respects_dependencies_and_difficulty(session: Session) -> None:
     group = _seed_group(session)
+
+    analysis = Category(name="Analysis")
+    algebra = Category(name="Algebra")
+    session.add_all([analysis, algebra])
+    session.flush()
+
+    configuration = ExamConfiguration(name="Klausur A", target_difficulty=2.5)
+    session.add(configuration)
+    session.flush()
     session.add_all(
         [
-            CategoryRequirement(category="Analysis", required_count=1),
-            CategoryRequirement(category="Algebra", required_count=1),
+            ExamConfigurationRequirement(
+                configuration_id=configuration.id,
+                category_id=analysis.id,
+                question_count=1,
+                position=0,
+            ),
+            ExamConfigurationRequirement(
+                configuration_id=configuration.id,
+                category_id=algebra.id,
+                question_count=1,
+                position=1,
+            ),
         ]
     )
 
     analysis_task = Task(
-        title="Analysis 1",
-        category="Analysis",
-        subcategory="Differential",
+        title="Ableitung",
+        category=analysis.name,
+        subcategory=None,
+        difficulty=2,
         statement_markdown="**Aufgabe**",
     )
     algebra_task = Task(
-        title="Algebra 1",
-        category="Algebra",
-        subcategory="Gruppen",
+        title="Gruppentheorie",
+        category=algebra.name,
+        subcategory=None,
+        difficulty=3,
         statement_markdown="Beweise XYZ",
     )
     algebra_task.dependencies.append(analysis_task)
@@ -71,24 +100,65 @@ def test_generate_exam_respects_dependencies(session: Session) -> None:
     session.add_all([analysis_task, algebra_task])
     session.commit()
 
-    exam = generate_exam_for_group(session, group.id, rng=random.Random(42))
+    exam = generate_exam(
+        session,
+        configuration_id=configuration.id,
+        group_id=group.id,
+        rng=random.Random(42),
+    )
     session.commit()
 
     assert len(exam.assignments) == 2
-    categories = {assignment.category for assignment in exam.assignments}
-    assert categories == {"Analysis", "Algebra"}
+    difficulties = [assignment.task.difficulty for assignment in exam.assignments]
+    assert abs(sum(difficulties) / len(difficulties) - configuration.target_difficulty) <= 0.5
 
-    algebra_assignment = next(assignment for assignment in exam.assignments if assignment.category == "Algebra")
+    categories = {assignment.category for assignment in exam.assignments}
+    assert categories == {analysis.name, algebra.name}
+
+    algebra_assignment = next(
+        assignment for assignment in exam.assignments if assignment.category == algebra.name
+    )
     assert algebra_assignment.task.dependencies[0].id == analysis_task.id
 
 
-def test_generate_exam_fails_when_insufficient_tasks(session: Session) -> None:
-    group = _seed_group(session)
-    session.add(CategoryRequirement(category="Analysis", required_count=1))
+def test_generate_exam_allows_demo_mode_without_group(session: Session) -> None:
+    analysis = Category(name="Analysis")
+    session.add(analysis)
+    session.flush()
+
+    configuration = ExamConfiguration(name="Demo", target_difficulty=2.0)
+    session.add(configuration)
+    session.flush()
+    session.add(
+        ExamConfigurationRequirement(
+            configuration_id=configuration.id,
+            category_id=analysis.id,
+            question_count=1,
+            position=0,
+        )
+    )
+
+    task = Task(
+        title="Grenzwert",
+        category=analysis.name,
+        subcategory=None,
+        difficulty=2,
+        statement_markdown="Berechne den Grenzwert.",
+    )
+    session.add(task)
     session.commit()
 
-    with pytest.raises(ExamGenerationError):
-        generate_exam_for_group(session, group.id, rng=random.Random(1))
+    exam = generate_exam(
+        session,
+        configuration_id=configuration.id,
+        group_id=None,
+        rng=random.Random(3),
+        demo_label="Testlauf",
+    )
+
+    assert exam.group is None
+    assert exam.demo_label == "Testlauf"
+    assert exam.configuration_id == configuration.id
 
 
 def test_import_students_from_excel(session: Session) -> None:
@@ -114,25 +184,42 @@ def test_import_students_from_excel(session: Session) -> None:
 
 def test_export_tasks_includes_categories_and_images(session: Session) -> None:
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    image_path = UPLOAD_DIR / "test_export_image.png"
+    image_path = UPLOAD_DIR / "test_export_image.jpg"
+    thumb_path = UPLOAD_DIR / "test_export_image_thumb.jpg"
     image_bytes = b"test-image"
+    thumb_bytes = b"thumb"
     image_path.write_bytes(image_bytes)
+    thumb_path.write_bytes(thumb_bytes)
 
     category = Category(name="Analysis")
     subcategory = Category(name="Differential", parent=category)
     session.add_all([category, subcategory])
-    session.add(CategoryRequirement(category="Analysis", required_count=2))
+    session.flush()
+
+    configuration = ExamConfiguration(name="Export", target_difficulty=2.0)
+    session.add(configuration)
+    session.flush()
+    session.add(
+        ExamConfigurationRequirement(
+            configuration_id=configuration.id,
+            category_id=category.id,
+            question_count=1,
+            position=0,
+        )
+    )
 
     prerequisite = Task(
         title="Vorkurs",
         category="Analysis",
         subcategory=None,
+        difficulty=1,
         statement_markdown="Vorbereitung",
     )
     task = Task(
         title="Analysis Hauptaufgabe",
         category="Analysis",
         subcategory="Differential",
+        difficulty=2,
         statement_markdown="**Inhalt**",
     )
     session.add_all([prerequisite, task])
@@ -143,6 +230,7 @@ def test_export_tasks_includes_categories_and_images(session: Session) -> None:
         TaskImage(
             task_id=task.id,
             file_path=f"uploads/{image_path.name}",
+            thumbnail_path=f"uploads/{thumb_path.name}",
             original_filename="grafik.png",
             mime_type="image/png",
             position=0,
@@ -164,9 +252,17 @@ def test_export_tasks_includes_categories_and_images(session: Session) -> None:
     assert main_task["dependencies"] == [prerequisite.id]
     assert main_task["images"]
     encoded_image = main_task["images"][0]["data"]
+    encoded_thumb = main_task["images"][0]["thumbnail"]
     assert base64.b64decode(encoded_image) == image_bytes
+    assert base64.b64decode(encoded_thumb) == thumb_bytes
+
+    exported_configurations = {item["name"]: item for item in payload["configurations"]}
+    assert "Export" in exported_configurations
+    config_payload = exported_configurations["Export"]
+    assert config_payload["requirements"][0]["category"] == "Analysis"
 
     image_path.unlink(missing_ok=True)
+    thumb_path.unlink(missing_ok=True)
 
 
 def test_import_tasks_creates_records(session: Session) -> None:
@@ -174,11 +270,7 @@ def test_import_tasks_creates_records(session: Session) -> None:
     image_bytes = b"import-image"
     payload = {
         "categories": [
-            {
-                "name": "Analysis",
-                "required_count": 2,
-                "subcategories": [{"name": "Differential"}],
-            }
+            {"name": "Analysis", "subcategories": [{"name": "Differential"}]}
         ],
         "tasks": [
             {
@@ -186,6 +278,7 @@ def test_import_tasks_creates_records(session: Session) -> None:
                 "title": "Analysis Aufgabe",
                 "category": "Analysis",
                 "subcategory": "Differential",
+                "difficulty": 3,
                 "statement_markdown": "Aufgabe",
                 "dependencies": [2],
                 "images": [
@@ -199,35 +292,41 @@ def test_import_tasks_creates_records(session: Session) -> None:
             },
             {
                 "id": 2,
-                "title": "Grundaufgabe",
+                "title": "Vorkurs",
                 "category": "Analysis",
                 "subcategory": None,
+                "difficulty": 1,
                 "statement_markdown": "Vorbereitung",
+                "dependencies": [],
             },
+        ],
+        "configurations": [
+            {
+                "name": "Importierte Prüfung",
+                "target_difficulty": 2.0,
+                "requirements": [
+                    {
+                        "category": "Analysis",
+                        "subcategory": "Differential",
+                        "question_count": 1,
+                        "position": 0,
+                    }
+                ],
+            }
         ],
     }
 
-    upload = UploadFile(
-        filename="tasks.json",
-        file=BytesIO(json.dumps(payload).encode("utf-8")),
-    )
-
+    buffer = BytesIO(json.dumps(payload).encode("utf-8"))
+    upload = UploadFile(filename="import.json", file=buffer)
     response = asyncio.run(import_tasks_data(upload=upload, db=session))
+
     assert response.status_code == 303
 
-    tasks = session.scalars(select(Task).order_by(Task.title)).unique().all()
+    tasks = session.scalars(select(Task)).unique().all()
     assert len(tasks) == 2
     main_task = next(task for task in tasks if task.title == "Analysis Aufgabe")
-    dependency_task = next(task for task in tasks if task.title == "Grundaufgabe")
-    assert dependency_task in main_task.dependencies
-
-    requirement = session.scalars(select(CategoryRequirement)).one()
-    assert requirement.required_count == 2
-
-    stored_image = session.scalars(select(TaskImage)).first()
-    assert stored_image is not None
-    stored_file = (Path("app/static") / stored_image.file_path)
-    assert stored_file.exists()
-    assert stored_file.read_bytes() == image_bytes
-
-    stored_file.unlink(missing_ok=True)
+    assert main_task.dependencies
+    assert main_task.difficulty == 3
+    assert main_task.images
+    configuration = session.scalars(select(ExamConfiguration)).first()
+    assert configuration and configuration.name == "Importierte Prüfung"

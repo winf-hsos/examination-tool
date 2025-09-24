@@ -8,53 +8,68 @@
 
 {% block title %}{{ page_title }} · Examination Tool{% endblock %}
 
+{% block head_extra %}
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css"
+  />
+{% endblock %}
+
 {% block content %}
-  <section class="card">
-    <h2>{{ page_title }}</h2>
-    {% if not categories %}
-      <p class="alert warning">
-        Es wurden noch keine Kategorien definiert. Lege zunächst Kategorien an, bevor du Aufgaben erstellst.
-      </p>
-    {% endif %}
+  <h1 class="page-title">{{ page_title }}</h1>
+
+  <div class="form-card">
     <form
       id="task-form"
       method="post"
       enctype="multipart/form-data"
       action="{% if task %}/tasks/{{ task.id }}{% else %}/tasks{% endif %}"
     >
-      <div class="form-row">
-        <label for="title">Titel</label>
-        <input id="title" type="text" name="title" value="{{ task.title if task else '' }}" required />
-      </div>
-      <div class="form-row">
-        <label for="category_id">Kategorie</label>
-        <select id="category_id" name="category_id" required>
-          <option value="" disabled {% if not selected_category_id %}selected{% endif %}>Kategorie wählen</option>
-          {% for category in categories %}
-            <option value="{{ category.id }}" {% if selected_category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="form-row">
-        <label for="subcategory_id">Unterkategorie</label>
-        <select
-          id="subcategory_id"
-          name="subcategory_id"
-          data-selected="{{ selected_subcategory_id if selected_subcategory_id else '' }}"
-        >
-          <option value="" {% if not selected_subcategory_id %}selected{% endif %}>Keine Unterkategorie</option>
-          {% if selected_category_id %}
+      <input type="hidden" name="crop_metadata" id="crop-metadata" />
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="title">Titel</label>
+          <input id="title" type="text" name="title" value="{{ task.title if task else '' }}" required />
+        </div>
+        <div class="form-field">
+          <label for="category_id">Kategorie</label>
+          <select id="category_id" name="category_id" required>
+            <option value="" disabled {% if not selected_category_id %}selected{% endif %}>Kategorie wählen</option>
             {% for category in categories %}
-              {% if category.id == selected_category_id %}
-                {% for subcategory in category.children %}
-                  <option value="{{ subcategory.id }}" {% if selected_subcategory_id == subcategory.id %}selected{% endif %}>{{ subcategory.name }}</option>
-                {% endfor %}
-              {% endif %}
+              <option value="{{ category.id }}" {% if selected_category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
             {% endfor %}
-          {% endif %}
-        </select>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="subcategory_id">Unterkategorie</label>
+          <select
+            id="subcategory_id"
+            name="subcategory_id"
+            data-selected="{{ selected_subcategory_id if selected_subcategory_id else '' }}"
+          >
+            <option value="" {% if not selected_subcategory_id %}selected{% endif %}>Keine Unterkategorie</option>
+            {% if selected_category_id %}
+              {% for category in categories %}
+                {% if category.id == selected_category_id %}
+                  {% for subcategory in category.children %}
+                    <option value="{{ subcategory.id }}" {% if selected_subcategory_id == subcategory.id %}selected{% endif %}>{{ subcategory.name }}</option>
+                  {% endfor %}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="difficulty">Schwierigkeitsstufe</label>
+          <select id="difficulty" name="difficulty" required>
+            <option value="1" {% if task and task.difficulty == 1 %}selected{% endif %}>1 · Grundlagen</option>
+            <option value="2" {% if not task or task.difficulty == 2 %}selected{% endif %}>2 · Fortgeschritten</option>
+            <option value="3" {% if task and task.difficulty == 3 %}selected{% endif %}>3 · Anspruchsvoll</option>
+          </select>
+        </div>
       </div>
-      <div class="form-row markdown-editor">
+
+      <div class="form-field markdown-editor">
         <label for="statement_markdown">Aufgabe (Markdown)</label>
         <div class="markdown-editor-grid">
           <textarea
@@ -66,8 +81,9 @@
           <div class="markdown-preview" id="statement-preview"></div>
         </div>
       </div>
-      <div class="form-row markdown-editor">
-        <label for="hints_markdown">Hinweise (Markdown, optional)</label>
+
+      <div class="form-field markdown-editor">
+        <label for="hints_markdown">Hinweise (optional)</label>
         <div class="markdown-editor-grid">
           <textarea
             id="hints_markdown"
@@ -77,8 +93,9 @@
           <div class="markdown-preview" id="hints-preview"></div>
         </div>
       </div>
-      <div class="form-row markdown-editor">
-        <label for="solution_markdown">Lösung (Markdown, optional)</label>
+
+      <div class="form-field markdown-editor">
+        <label for="solution_markdown">Lösung (optional)</label>
         <div class="markdown-editor-grid">
           <textarea
             id="solution_markdown"
@@ -88,55 +105,76 @@
           <div class="markdown-preview" id="solution-preview"></div>
         </div>
       </div>
-      <div class="form-row">
-        <label for="dependency_ids">Abhängigkeiten (IDs, durch Komma getrennt)</label>
+
+      <div class="form-field">
+        <label for="dependency_ids">Abhängigkeiten (IDs, Komma getrennt)</label>
         <input
           id="dependency_ids"
           type="text"
           name="dependency_ids"
           value="{% if task and task.dependencies %}{% for dep in task.dependencies %}{{ dep.id }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}"
+          placeholder="z. B. 12, 18"
         />
-        <small class="task-metadata">Wähle IDs aus der folgenden Liste, falls die Aufgabe von anderen Aufgaben abhängig ist.</small>
       </div>
-      <div class="form-row">
+
+      <div class="form-field">
         <label for="images">Anhänge (Bilder)</label>
         <input id="images" type="file" name="images" accept="image/*" multiple />
-        <small class="task-metadata">Unterstützt PNG, JPG und andere gängige Bildformate. Mehrere Dateien können gleichzeitig ausgewählt werden.</small>
+        <small class="text-muted">Bilder werden automatisch auf 4:3 zugeschnitten und auf 1200×900 px skaliert.</small>
+        <div class="task-media-preview" id="image-preview"></div>
       </div>
+
       {% if task and task.images %}
-        <div class="form-row">
+        <div class="form-field">
           <label>Vorhandene Bilder</label>
           <div class="image-gallery">
             {% for image in task.images %}
-              <div class="image-gallery-item">
-                <img src="{{ url_for('static', path=image.file_path) }}" alt="{{ image.original_filename }}" />
+              <figure>
+                <img src="{{ url_for('static', path=image.thumbnail_path or image.file_path) }}" alt="{{ image.original_filename }}" />
+                <figcaption>{{ image.original_filename }}</figcaption>
                 <label class="remove-toggle">
-                  <input type="checkbox" name="remove_image_ids" value="{{ image.id }}" />
-                  Entfernen
+                  <input type="checkbox" name="remove_image_ids" value="{{ image.id }}" /> Entfernen
                 </label>
-                <div class="task-metadata">{{ image.original_filename }}</div>
-              </div>
+              </figure>
             {% endfor %}
           </div>
         </div>
       {% endif %}
+
       {% if all_tasks %}
-        <div class="form-row">
+        <div class="form-field">
           <label>Verfügbare Aufgaben</label>
-          <div class="task-metadata">
+          <div class="markdown-preview" style="max-height:180px; overflow:auto;">
             {% for other in all_tasks %}
               #{{ other.id }} · {{ other.title }} ({{ other.category }})<br />
             {% endfor %}
           </div>
         </div>
       {% endif %}
-      <button type="submit">Speichern</button>
-      <a class="button secondary" href="/tasks">Abbrechen</a>
+
+      <div class="form-actions">
+        <a class="button ghost" href="/tasks">Abbrechen</a>
+        <button type="submit" class="button">Speichern</button>
+      </div>
     </form>
-  </section>
+  </div>
+
+  <div class="modal" id="crop-modal" role="dialog" aria-modal="true" aria-labelledby="crop-modal-title">
+    <div class="modal__content">
+      <h3 id="crop-modal-title">Bild zuschneiden</h3>
+      <div class="crop-container">
+        <img id="crop-image" alt="Vorschau zum Zuschnitt" />
+      </div>
+      <div class="modal__actions">
+        <button type="button" class="button ghost" id="crop-cancel">Abbrechen</button>
+        <button type="button" class="button" id="crop-apply">Zuschnitt übernehmen</button>
+      </div>
+    </div>
+  </div>
 {% endblock %}
 
 {% block scripts %}
+  <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
   <script>
     const categoryOptions = {{ category_options_json | safe }};
     const categorySelect = document.getElementById('category_id');
@@ -200,37 +238,137 @@
         try {
           const response = await fetch('/api/markdown/preview', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content }),
+            headers: {
+              'Content-Type': 'application/json',
+            },
             signal: abortController.signal,
+            body: JSON.stringify({ markdown: content }),
           });
           if (!response.ok) {
-            throw new Error('Fehler bei der Vorschau');
+            throw new Error('Fehler beim Rendern der Vorschau');
           }
-          const payload = await response.json();
-          previewElement.innerHTML = payload.html || '';
-          if (window.MathJax && window.MathJax.typesetPromise) {
-            window.MathJax.typesetPromise([previewElement]);
-          }
+          const data = await response.json();
+          previewElement.innerHTML = data.html || '';
         } catch (error) {
-          if (error.name === 'AbortError') {
-            return;
+          if (error.name !== 'AbortError') {
+            console.error(error);
           }
-          previewElement.innerHTML = '<p class="task-metadata">Keine Vorschau verfügbar.</p>';
         }
       }
 
-      const scheduleRender = () => {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-        timeoutId = setTimeout(renderPreview, 250);
-      };
+      textarea.addEventListener('input', () => {
+        clearTimeout(timeoutId);
+        timeoutId = window.setTimeout(renderPreview, 250);
+      });
 
-      textarea.addEventListener('input', scheduleRender);
       renderPreview();
     }
 
-    document.querySelectorAll('.markdown-editor textarea').forEach(setupMarkdownPreview);
+    document.querySelectorAll('[data-preview-target]').forEach(setupMarkdownPreview);
+
+    // Bildzuschnitt
+    const imageInput = document.getElementById('images');
+    const previewContainer = document.getElementById('image-preview');
+    const cropModal = document.getElementById('crop-modal');
+    const cropImage = document.getElementById('crop-image');
+    const cropApply = document.getElementById('crop-apply');
+    const cropCancel = document.getElementById('crop-cancel');
+    const cropMetadataField = document.getElementById('crop-metadata');
+
+    const cropQueue = [];
+    const cropMetadata = {};
+    let cropper = null;
+
+    function openModal() {
+      cropModal.classList.add('is-open');
+    }
+
+    function closeModal() {
+      cropModal.classList.remove('is-open');
+      if (cropper) {
+        cropper.destroy();
+        cropper = null;
+      }
+    }
+
+    function processNextCrop() {
+      if (!cropQueue.length) {
+        closeModal();
+        return;
+      }
+      const current = cropQueue.shift();
+      cropImage.src = current.dataUrl;
+      openModal();
+      requestAnimationFrame(() => {
+        cropper = new Cropper(cropImage, {
+          aspectRatio: 4 / 3,
+          viewMode: 1,
+          autoCropArea: 1,
+        });
+        cropApply.onclick = () => {
+          const data = cropper.getData();
+          cropMetadata[current.file.name] = {
+            x: data.x,
+            y: data.y,
+            width: data.width,
+            height: data.height,
+          };
+          closeModal();
+          processNextCrop();
+        };
+        cropCancel.onclick = () => {
+          delete cropMetadata[current.file.name];
+          closeModal();
+          processNextCrop();
+        };
+      });
+    }
+
+    function queueCrop(file, dataUrl) {
+      cropQueue.push({ file, dataUrl });
+      if (!cropper && !cropModal.classList.contains('is-open')) {
+        processNextCrop();
+      }
+    }
+
+    function handleFilePreview(file, dataUrl, needsCrop) {
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      img.alt = file.name;
+      previewContainer.appendChild(img);
+      if (!needsCrop) {
+        delete cropMetadata[file.name];
+      }
+    }
+
+    if (imageInput) {
+      imageInput.addEventListener('change', () => {
+        previewContainer.innerHTML = '';
+        cropQueue.length = 0;
+        closeModal();
+        Object.keys(cropMetadata).forEach((key) => delete cropMetadata[key]);
+        Array.from(imageInput.files || []).forEach((file) => {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const dataUrl = event.target.result;
+            const img = new Image();
+            img.onload = () => {
+              const ratio = img.width / img.height;
+              const needsCrop = Math.abs(ratio - 4 / 3) > 0.02;
+              handleFilePreview(file, dataUrl, needsCrop);
+              if (needsCrop) {
+                queueCrop(file, dataUrl);
+              }
+            };
+            img.src = dataUrl;
+          };
+          reader.readAsDataURL(file);
+        });
+      });
+    }
+
+    document.getElementById('task-form').addEventListener('submit', () => {
+      cropMetadataField.value = JSON.stringify(cropMetadata);
+    });
   </script>
 {% endblock %}
