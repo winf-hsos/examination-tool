@@ -99,7 +99,14 @@ def generate_exam_for_group(db: Session, group_id: int, rng: random.Random | Non
         raise ExamGenerationError("Es wurden noch keine Kategorienanforderungen definiert.")
 
     tasks = (
-        db.scalars(select(Task).options(joinedload(Task.dependencies))).unique().all()
+        db.scalars(
+            select(Task).options(
+                joinedload(Task.dependencies),
+                joinedload(Task.images),
+            )
+        )
+        .unique()
+        .all()
     )
     tasks_by_category = _collect_tasks_by_category(tasks)
 
@@ -121,7 +128,14 @@ def regenerate_exam(db: Session, exam_id: int, rng: random.Random | None = None)
 
     requirements = db.scalars(select(CategoryRequirement)).all()
     tasks = (
-        db.scalars(select(Task).options(joinedload(Task.dependencies))).unique().all()
+        db.scalars(
+            select(Task).options(
+                joinedload(Task.dependencies),
+                joinedload(Task.images),
+            )
+        )
+        .unique()
+        .all()
     )
     tasks_by_category = _collect_tasks_by_category(tasks)
     selected_tasks = _choose_tasks_for_requirements(requirements, tasks_by_category, rng)
@@ -146,6 +160,7 @@ def build_exam_payload(exam: ExamSession, include_solutions: bool) -> dict:
                 if include_solutions
                 else None,
                 "position": assignment.position,
+                "image_urls": [f"/static/{image.file_path}" for image in task.images],
             }
         )
 

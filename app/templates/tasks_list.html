@@ -4,10 +4,24 @@
 
 {% block content %}
   <section class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
+    <div class="task-toolbar">
       <h2>Aufgaben</h2>
-      <a class="button" href="/tasks/new">Neue Aufgabe</a>
+      <div class="task-toolbar-actions">
+        <a class="button" href="/tasks/new">Neue Aufgabe</a>
+        <a class="button secondary" href="/tasks/export">JSON exportieren</a>
+        <form id="task-import-form" method="post" action="/tasks/import" enctype="multipart/form-data">
+          <label for="import-file" class="button secondary">JSON importieren</label>
+          <input id="import-file" type="file" name="upload" accept="application/json" required />
+        </form>
+      </div>
     </div>
+    {% if import_summary %}
+      <p class="alert success">
+        Import abgeschlossen:
+        {{ import_summary.tasks }} Aufgabe(n), {{ import_summary.categories }} Kategorie(n),
+        {{ import_summary.subcategories }} Unterkategorie(n) und {{ import_summary.images }} Bild(er) verarbeitet.
+      </p>
+    {% endif %}
     {% if not tasks %}
       <p>Noch keine Aufgaben vorhanden. Lege die erste Aufgabe an, um Prüfungen erstellen zu können.</p>
     {% else %}
@@ -21,6 +35,16 @@
           <div class="task-body">
             <h4 class="section-title">Aufgabe</h4>
             <div class="markdown">{{ item.statement_html | safe }}</div>
+            {% if task.images %}
+              <div class="task-images">
+                {% for image in task.images %}
+                  <figure>
+                    <img src="{{ url_for('static', path=image.file_path) }}" alt="{{ image.original_filename }}" />
+                    <figcaption>{{ image.original_filename }}</figcaption>
+                  </figure>
+                {% endfor %}
+              </div>
+            {% endif %}
             {% if item.hints_html %}
               <h4 class="section-title">Hinweise</h4>
               <div class="markdown">{{ item.hints_html | safe }}</div>
@@ -43,4 +67,17 @@
       {% endfor %}
     {% endif %}
   </section>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    const importInput = document.getElementById('import-file');
+    if (importInput) {
+      importInput.addEventListener('change', () => {
+        if (importInput.files.length) {
+          importInput.form.submit();
+        }
+      });
+    }
+  </script>
 {% endblock %}

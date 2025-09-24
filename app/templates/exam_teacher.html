@@ -15,8 +15,9 @@
         </div>
         <div class="task-metadata">Gestartet am {{ exam.started_at.strftime('%d.%m.%Y %H:%M') }} Uhr</div>
       </div>
-      <div style="display:flex; gap:0.5rem;">
-        <a class="button secondary" target="_blank" href="/exams/{{ exam.exam_id }}/student">Studierendenansicht öffnen</a>
+      <div style="display:flex; flex-direction:column; gap:0.5rem; align-items:flex-end;">
+        <a class="button secondary" target="_blank" href="{{ request.url_for('show_exam_live') }}">Studierendenansicht öffnen</a>
+        <span class="task-metadata">Link teilen: <code class="share-link">{{ request.url_for('show_exam_live') }}</code></span>
         <form method="post" action="/exams/{{ exam.exam_id }}/regenerate" onsubmit="return confirm('Aufgaben neu auslosen?');">
           <button type="submit">Neue Aufgaben auslosen</button>
         </form>
@@ -28,6 +29,15 @@
           <h2>{{ loop.index }}. {{ task.title }}</h2>
           <div class="task-metadata">{{ task.category }}{% if task.subcategory %} · {{ task.subcategory }}{% endif %}</div>
           <div class="markdown">{{ task.statement_html | safe }}</div>
+          {% if task.image_urls %}
+            <div class="task-images">
+              {% for image_url in task.image_urls %}
+                <figure>
+                  <img src="{{ image_url }}" alt="Aufgabenbild {{ loop.index }}" />
+                </figure>
+              {% endfor %}
+            </div>
+          {% endif %}
           {% if task.hints_html %}
             <div class="section-title">Hinweise</div>
             <div class="markdown">{{ task.hints_html | safe }}</div>
