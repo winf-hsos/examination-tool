@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% if task %}
+  {% set page_title = 'Aufgabe bearbeiten' %}
+{% else %}
+  {% set page_title = 'Neue Aufgabe anlegen' %}
+{% endif %}
+
+{% block title %}{{ page_title }} · Examination Tool{% endblock %}
+
+{% block content %}
+  <section class="card">
+    <h2>{{ page_title }}</h2>
+    <form method="post" action="{% if task %}/tasks/{{ task.id }}{% else %}/tasks{% endif %}">
+      <div class="form-row">
+        <label for="title">Titel</label>
+        <input id="title" type="text" name="title" value="{{ task.title if task else '' }}" required />
+      </div>
+      <div class="form-row">
+        <label for="category">Kategorie</label>
+        <input id="category" type="text" name="category" value="{{ task.category if task else '' }}" required />
+      </div>
+      <div class="form-row">
+        <label for="subcategory">Unterkategorie</label>
+        <input id="subcategory" type="text" name="subcategory" value="{{ task.subcategory if task and task.subcategory else '' }}" />
+      </div>
+      <div class="form-row">
+        <label for="statement_markdown">Aufgabe (Markdown)</label>
+        <textarea id="statement_markdown" name="statement_markdown" required>{{ task.statement_markdown if task else '' }}</textarea>
+      </div>
+      <div class="form-row">
+        <label for="hints_markdown">Hinweise (Markdown, optional)</label>
+        <textarea id="hints_markdown" name="hints_markdown">{{ task.hints_markdown if task and task.hints_markdown else '' }}</textarea>
+      </div>
+      <div class="form-row">
+        <label for="solution_markdown">Lösung (Markdown, optional)</label>
+        <textarea id="solution_markdown" name="solution_markdown">{{ task.solution_markdown if task and task.solution_markdown else '' }}</textarea>
+      </div>
+      <div class="form-row">
+        <label for="dependency_ids">Abhängigkeiten (IDs, durch Komma getrennt)</label>
+        <input id="dependency_ids" type="text" name="dependency_ids" value="{% if task and task.dependencies %}{% for dep in task.dependencies %}{{ dep.id }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}" />
+        <small class="task-metadata">Wähle IDs aus der folgenden Liste, falls die Aufgabe von anderen Aufgaben abhängig ist.</small>
+      </div>
+      {% if all_tasks %}
+        <div class="form-row">
+          <label>Verfügbare Aufgaben</label>
+          <div class="task-metadata">
+            {% for other in all_tasks %}
+              #{{ other.id }} · {{ other.title }} ({{ other.category }})<br />
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+      <button type="submit">Speichern</button>
+      <a class="button secondary" href="/tasks">Abbrechen</a>
+    </form>
+  </section>
+{% endblock %}

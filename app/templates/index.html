@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Übersicht · Examination Tool{% endblock %}
+
+{% block content %}
+  <section class="card">
+    <h2>Überblick</h2>
+    <p>Verwalte Studierende, Aufgaben und starte neue Prüfungssitzungen.</p>
+    <div class="stats-grid">
+      <div>
+        <strong>{{ tasks_count }}</strong>
+        <div>Aufgaben vorhanden</div>
+      </div>
+      <div>
+        <strong>{{ category_requirements|length }}</strong>
+        <div>Kategorien definiert</div>
+      </div>
+      <div>
+        <strong>{{ groups|length }}</strong>
+        <div>Gruppen verfügbar</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Prüfung starten</h2>
+    {% if not groups %}
+      <p>Es wurden noch keine Studierenden importiert. Lade zuerst eine XLSX-Datei hoch.</p>
+    {% else %}
+      <p>Wähle eine Gruppe aus, um eine neue Prüfungssitzung zu erstellen. Es wird automatisch pro Kategorie eine zufällige Aufgabe ausgewählt.</p>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Gruppe</th>
+            <th>Studierende</th>
+            <th>Aktion</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for group in groups %}
+            <tr>
+              <td>{{ group.label }}</td>
+              <td>
+                {% for student in group.students %}
+                  {{ student.full_name }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+              </td>
+              <td>
+                <form method="post" action="/exams">
+                  <input type="hidden" name="group_id" value="{{ group.id }}" />
+                  <button type="submit">Prüfung starten</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Kategorien</h2>
+    {% if not category_requirements %}
+      <p>Definiere Kategorien, um die Auswahl der Aufgaben zu steuern.</p>
+    {% else %}
+      <ul>
+        {% for category in category_requirements %}
+          <li><strong>{{ category.category }}</strong>: {{ category.required_count }} Aufgabe(n)</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </section>
+
+  {% if latest_exam %}
+    <section class="card">
+      <h2>Letzte Prüfung</h2>
+      <p>
+        Gruppe <strong>{{ latest_exam.group.label }}</strong> &middot;
+        gestartet am {{ latest_exam.started_at.strftime('%d.%m.%Y %H:%M') }} Uhr
+      </p>
+      <a class="button secondary" href="/exams/{{ latest_exam.id }}/teacher">Prüfung ansehen</a>
+    </section>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Kategorien · Examination Tool{% endblock %}
+
+{% block content %}
+  <section class="card">
+    <h2>Kategorien verwalten</h2>
+    <p>Lege fest, wie viele Aufgaben pro Kategorie zufällig ausgewählt werden. Jede Kategorie kann beliebig viele Aufgaben umfassen.</p>
+    <form method="post" action="/categories" style="margin-bottom:1.5rem;">
+      <h3>Neue Kategorie hinzufügen</h3>
+      <div class="form-row">
+        <label for="category">Kategorie</label>
+        <input id="category" type="text" name="category" required />
+      </div>
+      <div class="form-row">
+        <label for="required_count">Anzahl Aufgaben pro Prüfung</label>
+        <input id="required_count" type="number" min="1" name="required_count" value="1" required />
+      </div>
+      <button type="submit">Kategorie anlegen</button>
+    </form>
+
+    {% if not categories %}
+      <p>Noch keine Kategorien angelegt.</p>
+    {% else %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Kategorie</th>
+            <th>Aufgabenanzahl</th>
+            <th>Aktionen</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for category in categories %}
+            <tr>
+              <td>{{ category.category }}</td>
+              <td>
+                <form method="post" action="/categories">
+                  <input type="hidden" name="category_id" value="{{ category.id }}" />
+                  <input type="hidden" name="category" value="{{ category.category }}" />
+                  <input type="number" name="required_count" value="{{ category.required_count }}" min="1" required />
+                  <button type="submit" class="secondary">Speichern</button>
+                </form>
+              </td>
+              <td>
+                <form method="post" action="/categories/{{ category.id }}/delete" onsubmit="return confirm('Kategorie wirklich löschen?');">
+                  <button type="submit" class="danger">Löschen</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </section>
+{% endblock %}

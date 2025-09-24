@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Prüfung · Studierendenansicht{% endblock %}
+
+{% block head_extra %}
+  <style>
+    header.topbar nav,
+    header.topbar .brand { display: none; }
+    body { background: #fff; }
+    main.container { max-width: 900px; }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <section class="card" id="student-app" data-exam-id="{{ exam_id }}">
+    <h2 id="group-label">Prüfung</h2>
+    <div class="task-metadata">Diese Ansicht blendet Hinweise und Lösungen automatisch aus.</div>
+    <div id="tasks" class="exam-layout" style="margin-top:1.5rem;">
+      <p>Lade Aufgaben...</p>
+    </div>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    const appElement = document.getElementById('student-app');
+    const tasksContainer = document.getElementById('tasks');
+    const groupLabel = document.getElementById('group-label');
+    const examId = appElement.dataset.examId;
+
+    async function fetchExam() {
+      try {
+        const response = await fetch(`/api/exams/${examId}`);
+        if (!response.ok) {
+          throw new Error('Fehler beim Laden der Aufgaben');
+        }
+        const payload = await response.json();
+        renderExam(payload);
+      } catch (error) {
+        tasksContainer.innerHTML = `<p class="alert error">${error.message}</p>`;
+      }
+    }
+
+    function renderExam(exam) {
+      groupLabel.textContent = `Prüfung für ${exam.group.label}`;
+      if (!exam.tasks.length) {
+        tasksContainer.innerHTML = '<p>Keine Aufgaben verfügbar.</p>';
+        return;
+      }
+      tasksContainer.innerHTML = exam.tasks
+        .map((task, index) => `
+          <article class="exam-task">
+            <h2>${index + 1}. ${task.title}</h2>
+            <div class="task-metadata">${task.category}${task.subcategory ? ' · ' + task.subcategory : ''}</div>
+            <div class="markdown">${task.statement_html}</div>
+          </article>
+        `)
+        .join('');
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise();
+      }
+    }
+
+    fetchExam();
+    setInterval(fetchExam, 7000);
+  </script>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Studierende importieren · Examination Tool{% endblock %}
+
+{% block content %}
+  <section class="card">
+    <h2>Studierende importieren</h2>
+    <p>Lade eine XLSX-Datei mit den Studierendennamen hoch. Spaltenüberschriften werden in Groß-/Kleinschreibung ignoriert.</p>
+    <ul>
+      <li><strong>Name</strong> (Pflichtfeld)</li>
+      <li><strong>Partner</strong> (optional, Partnerin/Partner für Paarprüfungen)</li>
+      <li><strong>Group</strong> (optional, eigener Anzeigename für die Gruppe)</li>
+    </ul>
+    <form method="post" enctype="multipart/form-data">
+      <div class="form-row">
+        <label for="upload">XLSX-Datei</label>
+        <input id="upload" type="file" name="upload" accept=".xlsx" required />
+      </div>
+      <button type="submit">Import starten</button>
+    </form>
+  </section>
+
+  {% if result %}
+    <section class="card">
+      <h2>Import-Ergebnis</h2>
+      <p>Datei: <strong>{{ filename }}</strong></p>
+      <ul>
+        <li>{{ result.created_groups }} neue Gruppe(n)</li>
+        <li>{{ result.created_students }} neue Studierende</li>
+        <li>{{ result.skipped_rows }} übersprungene Zeilen</li>
+      </ul>
+      {% if result.errors %}
+        <div class="alert error">
+          <strong>Hinweise:</strong>
+          <ul>
+            {% for error in result.errors %}
+              <li>{{ error }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% else %}
+        <div class="alert success">Import erfolgreich abgeschlossen.</div>
+      {% endif %}
+      <a class="button secondary" href="/">Zurück zur Übersicht</a>
+    </section>
+  {% endif %}
+{% endblock %}
