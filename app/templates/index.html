@@ -3,109 +3,153 @@
 {% block title %}Übersicht · Examination Tool{% endblock %}
 
 {% block content %}
-  <section class="card">
-    <h2>Überblick</h2>
-    <p>Verwalte Studierende, Aufgaben und starte neue Prüfungssitzungen.</p>
-    <div class="stats-grid">
-      <div>
-        <strong>{{ tasks_count }}</strong>
-        <div>Aufgaben vorhanden</div>
-      </div>
-      <div>
-        <strong>{{ category_requirements|length }}</strong>
-        <div>Kategorien definiert</div>
-      </div>
-      <div>
-        <strong>{{ groups|length }}</strong>
-        <div>Gruppen verfügbar</div>
-      </div>
-    </div>
-  </section>
+  <h1 class="page-title">Übersicht</h1>
 
-  <section class="card">
-    <h2>Prüfung starten</h2>
-    {% if not groups %}
-      <p>Es wurden noch keine Studierenden importiert. Lade zuerst eine XLSX-Datei hoch.</p>
+  <div class="cards-row">
+    <div class="card">
+      <h2>Aufgaben</h2>
+      <div class="stat-value">{{ tasks_count }}</div>
+      <p class="text-muted">verfügbare Aufgaben in der Bibliothek</p>
+      <a class="accent-link" href="/tasks">Aufgaben verwalten →</a>
+    </div>
+    <div class="card">
+      <h2>Kategorien</h2>
+      <div class="stat-value">{{ category_tree|length }}</div>
+      <p class="text-muted">Hauptkategorien mit Unterstrukturen</p>
+      <a class="accent-link" href="/categories">Kategorien bearbeiten →</a>
+    </div>
+    <div class="card">
+      <h2>Gruppen</h2>
+      <div class="stat-value">{{ groups|length }}</div>
+      <p class="text-muted">importierte Teams und Partnerpaare</p>
+      <a class="accent-link" href="/students/import">Studierende importieren →</a>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="section-header">
+      <h2>Prüfungskonfigurationen</h2>
+      <a class="button small" href="/exam-configurations/new">Neue Konfiguration anlegen</a>
+    </div>
+    {% if not configurations %}
+      <div class="card config-card">
+        <p>Es wurden noch keine Prüfungskonfigurationen erstellt. Lege eine neue Konfiguration an, um festzulegen, welche Kategorien und wie viele Aufgaben pro Kategorie in einer Prüfung verwendet werden sollen.</p>
+        <a class="button secondary small" href="/exam-configurations/new">Jetzt konfigurieren</a>
+      </div>
     {% else %}
-      <p>Wähle eine Gruppe aus, um eine neue Prüfungssitzung zu erstellen. Es wird automatisch pro Kategorie eine zufällige Aufgabe ausgewählt.</p>
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Gruppe</th>
-            <th>Studierende</th>
-            <th>Aktion</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for group in groups %}
-            <tr>
-              <td>{{ group.label }}</td>
-              <td>
-                {% for student in group.students %}
-                  {{ student.full_name }}{% if not loop.last %}, {% endif %}
-                {% endfor %}
-              </td>
-              <td>
-                <form method="post" action="/exams">
-                  <input type="hidden" name="group_id" value="{{ group.id }}" />
-                  <button type="submit">Prüfung starten</button>
+      <div class="task-grid">
+        {% for configuration in configurations %}
+          <article class="card config-card">
+            <header class="section-header" style="margin-bottom:0.5rem;">
+              <h3>{{ configuration.name }}</h3>
+              <form method="post" action="/exam-configurations/{{ configuration.id }}/delete" onsubmit="return confirm('Konfiguration wirklich löschen?');">
+                <button class="button ghost small" type="submit">Löschen</button>
+              </form>
+            </header>
+            <div class="config-meta">
+              <span class="chip">Ø Schwierigkeit {{ '%.1f' % configuration.target_difficulty }}</span>
+              <span class="badge">{{ configuration.requirements|length }} Kategorien</span>
+            </div>
+            <div class="config-card__requirements">
+              {% for requirement in configuration.requirements %}
+                <div>
+                  <strong>{{ requirement.category.name }}</strong>
+                  {% if requirement.subcategory %}· {{ requirement.subcategory.name }}{% endif %}
+                  <span class="badge">{{ requirement.question_count }} Frage(n)</span>
+                </div>
+              {% endfor %}
+            </div>
+            <div class="config-card__footer">
+              {% if has_groups %}
+                <form class="inline-form" method="post" action="/exams">
+                  <input type="hidden" name="configuration_id" value="{{ configuration.id }}" />
+                  <label for="config-{{ configuration.id }}-group">Gruppe</label>
+                  <select id="config-{{ configuration.id }}-group" name="group_id" required>
+                    <option value="" disabled selected>Gruppe wählen</option>
+                    {% for group in groups %}
+                      <option value="{{ group.id }}">{{ group.label }}</option>
+                    {% endfor %}
+                  </select>
+                  <button class="button small" type="submit">Prüfung starten</button>
                 </form>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+              {% else %}
+                <p class="text-muted">Noch keine Gruppen importiert. Verwende den Demomodus, um die Studierendenansicht zu testen.</p>
+              {% endif %}
+              <form class="inline-form" method="post" action="/exams">
+                <input type="hidden" name="configuration_id" value="{{ configuration.id }}" />
+                <input type="hidden" name="group_id" value="" />
+                <label for="demo-{{ configuration.id }}">Demomodus</label>
+                <input id="demo-{{ configuration.id }}" type="text" name="demo_label" value="Testmodus" />
+                <button class="button secondary small" type="submit">Demo öffnen</button>
+              </form>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
     {% endif %}
   </section>
 
-  <section class="card">
-    <h2>Studierendenansicht</h2>
-    <p>Nutze diesen Link, um die Ansicht für Studierende auf einem separaten Bildschirm anzuzeigen. Bei neuen Prüfungen aktualisiert sich die Ansicht automatisch.</p>
-    <code class="share-link">{{ student_live_url }}</code>
-    <div class="task-metadata" style="margin-top:0.5rem;">
-      {% if active_exam %}
-        Aktive Prüfung: {{ active_exam.group.label }} (gestartet am {{ active_exam.started_at.strftime('%d.%m.%Y %H:%M') }} Uhr)
+  <section class="section">
+    <div class="section-header">
+      <h2>Kategorien &amp; Struktur</h2>
+    </div>
+    <div class="category-tree">
+      {% if not category_tree %}
+        <p>Es wurden noch keine Kategorien definiert. Lege Haupt- und Unterkategorien an, um Aufgaben übersichtlich zu strukturieren.</p>
       {% else %}
-        Aktuell ist keine Prüfung aktiv.
+        <ul>
+          {% for category in category_tree %}
+            <li>
+              <strong>{{ category.name }}</strong>
+              {% if category.children %}
+                <ul>
+                  {% for subcategory in category.children %}
+                    <li>{{ subcategory.name }}</li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
       {% endif %}
     </div>
-    <a class="button secondary" href="{{ student_live_url }}" target="_blank">Studierendenansicht öffnen</a>
   </section>
 
-  <section class="card">
-    <h2>Kategorien</h2>
-    {% if not category_tree %}
-      <p>Definiere Kategorien, um die Auswahl der Aufgaben zu steuern.</p>
-    {% else %}
-      <ul class="category-summary">
-        {% for category in category_tree %}
-          {% set requirement = requirements_map.get(category.name) %}
-          <li>
-            <strong>{{ category.name }}</strong>
-            {% if requirement %}
-              · {{ requirement.required_count }} Aufgabe(n)
-            {% endif %}
-            {% if category.children %}
-              <ul>
-                {% for subcategory in category.children %}
-                  <li>{{ subcategory.name }}</li>
-                {% endfor %}
-              </ul>
-            {% endif %}
-          </li>
-        {% endfor %}
-      </ul>
-    {% endif %}
+  <section class="section">
+    <div class="section-header">
+      <h2>Studierendenansicht</h2>
+    </div>
+      <div class="card">
+        <p>Nutze diesen Link, um die Liveansicht für Studierende bereitzustellen. Die aktuell aktive Prüfung wird dort automatisch angezeigt.</p>
+        <code class="share-link">{{ student_live_url }}</code>
+        <div class="task-card__meta" style="margin-top:0.75rem;">
+          {% if active_exam %}
+          Aktive Prüfung: {{ active_exam.configuration.name if active_exam.configuration else 'Konfiguration unbekannt' }}{% if active_exam.group %} · {{ active_exam.group.label }}{% endif %} (gestartet am {{ active_exam.started_at.strftime('%d.%m.%Y %H:%M') }} Uhr)
+          {% else %}
+          Aktuell ist keine Prüfung aktiv.
+          {% endif %}
+        </div>
+        <a class="button secondary" href="{{ student_live_url }}" target="_blank" rel="noopener">Studierendenansicht öffnen</a>
+    </div>
   </section>
 
   {% if latest_exam %}
-    <section class="card">
-      <h2>Letzte Prüfung</h2>
-      <p>
-        Gruppe <strong>{{ latest_exam.group.label }}</strong> &middot;
-        gestartet am {{ latest_exam.started_at.strftime('%d.%m.%Y %H:%M') }} Uhr
-      </p>
-      <a class="button secondary" href="/exams/{{ latest_exam.id }}/teacher">Prüfung ansehen</a>
+    <section class="section">
+      <div class="section-header">
+        <h2>Letzte Prüfung</h2>
+      </div>
+      <div class="card">
+        <p>
+          {% if latest_exam.group %}
+            Gruppe <strong>{{ latest_exam.group.label }}</strong>
+          {% else %}
+            <strong>Demomodus</strong>
+          {% endif %}
+          · {{ latest_exam.configuration.name if latest_exam.configuration else 'ohne Konfiguration' }}
+          · gestartet am {{ latest_exam.started_at.strftime('%d.%m.%Y %H:%M') }} Uhr
+        </p>
+        <a class="button secondary" href="/exams/{{ latest_exam.id }}/teacher">Prüfung ansehen</a>
+      </div>
     </section>
   {% endif %}
 {% endblock %}

@@ -3,81 +3,59 @@
 {% block title %}Aufgaben · Examination Tool{% endblock %}
 
 {% block content %}
-  <section class="card">
-    <div class="task-toolbar">
-      <h2>Aufgaben</h2>
-      <div class="task-toolbar-actions">
-        <a class="button" href="/tasks/new">Neue Aufgabe</a>
-        <a class="button secondary" href="/tasks/export">JSON exportieren</a>
-        <form id="task-import-form" method="post" action="/tasks/import" enctype="multipart/form-data">
-          <label for="import-file" class="button secondary">JSON importieren</label>
-          <input id="import-file" type="file" name="upload" accept="application/json" required />
-        </form>
-      </div>
+  <div class="section-header">
+    <h1 class="page-title">Aufgabenbibliothek</h1>
+    <div>
+      <a class="button secondary" href="/tasks/export">Exportieren</a>
+      <a class="button" href="/tasks/new">Neue Aufgabe</a>
     </div>
-    {% if import_summary %}
-      <p class="alert success">
-        Import abgeschlossen:
-        {{ import_summary.tasks }} Aufgabe(n), {{ import_summary.categories }} Kategorie(n),
-        {{ import_summary.subcategories }} Unterkategorie(n) und {{ import_summary.images }} Bild(er) verarbeitet.
-      </p>
-    {% endif %}
-    {% if not tasks %}
-      <p>Noch keine Aufgaben vorhanden. Lege die erste Aufgabe an, um Prüfungen erstellen zu können.</p>
-    {% else %}
+  </div>
+
+  {% if import_summary %}
+    <div class="alert success">
+      Import erfolgreich: {{ import_summary.tasks }} Aufgaben, {{ import_summary.categories }} Kategorien, {{ import_summary.subcategories }} Unterkategorien, {{ import_summary.images }} Bilder.
+    </div>
+  {% endif %}
+
+  {% if not tasks %}
+    <div class="card">
+      <p>Noch keine Aufgaben vorhanden. Lege eine neue Aufgabe an oder importiere vorhandene Datensätze.</p>
+    </div>
+  {% else %}
+    <div class="task-grid">
       {% for item in tasks %}
         {% set task = item.task %}
         <article class="task-card">
-          <header>
-            <h3>#{{ task.id }} · {{ task.title }}</h3>
-            <div class="task-metadata">Kategorie: {{ task.category }}{% if task.subcategory %} &middot; Unterkategorie: {{ task.subcategory }}{% endif %}</div>
-          </header>
-          <div class="task-body">
-            <h4 class="section-title">Aufgabe</h4>
-            <div class="markdown">{{ item.statement_html | safe }}</div>
+          <div class="task-card__image">
             {% if task.images %}
-              <div class="task-images">
-                {% for image in task.images %}
-                  <figure>
-                    <img src="{{ url_for('static', path=image.file_path) }}" alt="{{ image.original_filename }}" />
-                    <figcaption>{{ image.original_filename }}</figcaption>
-                  </figure>
-                {% endfor %}
-              </div>
-            {% endif %}
-            {% if item.hints_html %}
-              <h4 class="section-title">Hinweise</h4>
-              <div class="markdown">{{ item.hints_html | safe }}</div>
-            {% endif %}
-            {% if item.solution_html %}
-              <h4 class="section-title">Lösung</h4>
-              <div class="markdown">{{ item.solution_html | safe }}</div>
+              {% set image = task.images[0] %}
+              <img src="{{ url_for('static', path=image.thumbnail_path or image.file_path) }}" alt="Vorschaubild zu {{ task.title }}" />
+            {% else %}
+              <div class="task-card__placeholder">Schwierigkeit {{ task.difficulty }}</div>
             {% endif %}
           </div>
-          <footer style="margin-top:1rem; display:flex; gap:0.5rem;">
-            <a class="button secondary" href="/tasks/{{ task.id }}/edit">Bearbeiten</a>
-            <form method="post" action="/tasks/{{ task.id }}/delete" onsubmit="return confirm('Aufgabe wirklich löschen?');">
-              <button type="submit" class="danger">Löschen</button>
-            </form>
-            {% if task.dependencies %}
-              <span class="task-metadata">Abhängigkeiten: {% for dep in task.dependencies %}#{{ dep.id }}{% if not loop.last %}, {% endif %}{% endfor %}</span>
-            {% endif %}
-          </footer>
+          <div class="task-card__body">
+            <div class="task-card__meta">
+              <span class="badge">{{ task.category }}{% if task.subcategory %} · {{ task.subcategory }}{% endif %}</span>
+              <span class="chip chip--level-{{ task.difficulty }}">Schwierigkeit {{ task.difficulty }}</span>
+              {% if task.dependencies %}
+                <span class="badge">Voraussetzungen: {{ task.dependencies|length }}</span>
+              {% endif %}
+            </div>
+            <h3 class="task-card__title">{{ task.title }}</h3>
+            <div class="markdown-preview" style="max-height:180px; overflow:auto;">{{ item.statement_html|safe }}</div>
+            <div class="task-card__actions">
+              <a class="button secondary small" href="/tasks/{{ task.id }}/edit">Bearbeiten</a>
+              <form method="post" action="/tasks/{{ task.id }}/copy">
+                <button class="button small" type="submit">Kopie erstellen</button>
+              </form>
+              <form method="post" action="/tasks/{{ task.id }}/delete" onsubmit="return confirm('Aufgabe wirklich löschen?');">
+                <button class="button danger small" type="submit">Löschen</button>
+              </form>
+            </div>
+          </div>
         </article>
       {% endfor %}
-    {% endif %}
-  </section>
-{% endblock %}
-
-{% block scripts %}
-  <script>
-    const importInput = document.getElementById('import-file');
-    if (importInput) {
-      importInput.addEventListener('change', () => {
-        if (importInput.files.length) {
-          importInput.form.submit();
-        }
-      });
-    }
-  </script>
+    </div>
+  {% endif %}
 {% endblock %}

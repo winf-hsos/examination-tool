@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Neue Prüfungskonfiguration · Examination Tool{% endblock %}
+
+{% block content %}
+  <h1 class="page-title">Neue Prüfungskonfiguration</h1>
+
+  <div class="form-card">
+    <form id="configuration-form" method="post" action="/exam-configurations">
+      <input type="hidden" name="requirements_json" id="requirements-json" />
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="configuration-name">Name der Konfiguration</label>
+          <input id="configuration-name" name="name" type="text" placeholder="z. B. Abschlussklausur" required />
+        </div>
+        <div class="form-field">
+          <label for="target-difficulty">Durchschnittliches Schwierigkeitsniveau</label>
+          <input id="target-difficulty" name="target_difficulty" type="range" min="1" max="3" step="0.5" value="2" />
+          <div class="badge" id="target-difficulty-display">Stufe 2.0</div>
+        </div>
+      </div>
+
+      <div class="form-field">
+        <label>Kategorien &amp; Anzahl Aufgaben</label>
+        <p class="text-muted">Lege fest, aus welchen Kategorien wie viele Aufgaben automatisch gezogen werden sollen. Die Reihenfolge bestimmt zugleich die Priorität bei der Auswahl.</p>
+        <div id="requirements-list" class="form-grid"></div>
+        <button type="button" class="button secondary small" id="add-requirement">Kategorie hinzufügen</button>
+      </div>
+
+      <div class="form-actions">
+        <a class="button ghost" href="/">Abbrechen</a>
+        <button type="submit" class="button">Konfiguration speichern</button>
+      </div>
+    </form>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    const CATEGORY_OPTIONS = {{ category_options_json|safe }};
+
+    (function() {
+      const listEl = document.getElementById('requirements-list');
+      const addBtn = document.getElementById('add-requirement');
+      const requirementsInput = document.getElementById('requirements-json');
+      const difficultyInput = document.getElementById('target-difficulty');
+      const difficultyDisplay = document.getElementById('target-difficulty-display');
+
+      const updateDifficultyDisplay = () => {
+        difficultyDisplay.textContent = `Stufe ${Number(difficultyInput.value).toFixed(1)}`;
+      };
+      difficultyInput.addEventListener('input', updateDifficultyDisplay);
+      updateDifficultyDisplay();
+
+      function buildCategorySelect(selectedId) {
+        const select = document.createElement('select');
+        select.required = true;
+        select.dataset.role = 'category';
+        select.innerHTML = '<option value="" disabled selected>Kategorie wählen</option>';
+        CATEGORY_OPTIONS.forEach(option => {
+          const opt = document.createElement('option');
+          opt.value = option.id;
+          opt.textContent = option.name;
+          if (String(option.id) === String(selectedId)) {
+            opt.selected = true;
+          }
+          select.appendChild(opt);
+        });
+        return select;
+      }
+
+      function buildSubcategorySelect(categoryId, selectedId) {
+        const select = document.createElement('select');
+        select.dataset.role = 'subcategory';
+        select.innerHTML = '<option value="">Alle Unterkategorien</option>';
+        const category = CATEGORY_OPTIONS.find(option => String(option.id) === String(categoryId));
+        if (category && category.subcategories) {
+          category.subcategories.forEach(sub => {
+            const opt = document.createElement('option');
+            opt.value = sub.id;
+            opt.textContent = sub.name;
+            if (String(sub.id) === String(selectedId)) {
+              opt.selected = true;
+            }
+            select.appendChild(opt);
+          });
+        }
+        return select;
+      }
+
+      function createRequirementRow(initial) {
+        const row = document.createElement('div');
+        row.className = 'card requirement-row';
+        row.style.padding = '1rem';
+        row.style.display = 'grid';
+        row.style.gridTemplateColumns = 'repeat(auto-fit, minmax(180px, 1fr))';
+        row.style.gap = '0.75rem';
+
+        const categoryField = document.createElement('div');
+        categoryField.className = 'form-field';
+        const categoryLabel = document.createElement('label');
+        categoryLabel.textContent = 'Kategorie';
+        const categorySelect = buildCategorySelect(initial?.category_id);
+        categoryField.append(categoryLabel, categorySelect);
+
+        const subcategoryField = document.createElement('div');
+        subcategoryField.className = 'form-field';
+        const subcategoryLabel = document.createElement('label');
+        subcategoryLabel.textContent = 'Unterkategorie';
+        const subcategorySelect = buildSubcategorySelect(initial?.category_id, initial?.subcategory_id);
+        subcategoryField.append(subcategoryLabel, subcategorySelect);
+
+        const countField = document.createElement('div');
+        countField.className = 'form-field';
+        const countLabel = document.createElement('label');
+        countLabel.textContent = 'Aufgaben';
+        const countInput = document.createElement('input');
+        countInput.type = 'number';
+        countInput.min = '1';
+        countInput.value = initial?.question_count || 1;
+        countInput.required = true;
+        countInput.dataset.role = 'count';
+        countField.append(countLabel, countInput);
+
+        const removeField = document.createElement('div');
+        removeField.className = 'form-field';
+        removeField.style.alignSelf = 'end';
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'button ghost small';
+        removeBtn.textContent = 'Entfernen';
+        removeBtn.addEventListener('click', () => {
+          row.remove();
+        });
+        removeField.append(removeBtn);
+
+        categorySelect.addEventListener('change', () => {
+          const current = subcategorySelect.value;
+          const nextSelect = buildSubcategorySelect(categorySelect.value, current);
+          nextSelect.dataset.role = 'subcategory';
+          subcategorySelect.replaceWith(nextSelect);
+        });
+
+        row.append(categoryField, subcategoryField, countField, removeField);
+        return row;
+      }
+
+      function addRequirement(initial) {
+        const row = createRequirementRow(initial);
+        listEl.appendChild(row);
+      }
+
+      addBtn.addEventListener('click', () => addRequirement());
+      addRequirement();
+
+      document.getElementById('configuration-form').addEventListener('submit', event => {
+        const rows = Array.from(listEl.querySelectorAll('.requirement-row'));
+        if (!rows.length) {
+          event.preventDefault();
+          alert('Bitte füge mindestens eine Kategorie hinzu.');
+          return;
+        }
+        const requirements = rows.map(row => {
+          const categorySelect = row.querySelector('[data-role="category"]');
+          const subcategorySelect = row.querySelector('[data-role="subcategory"]');
+          const countInput = row.querySelector('[data-role="count"]');
+          return {
+            category_id: categorySelect.value,
+            subcategory_id: subcategorySelect.value || null,
+            question_count: countInput.value || 1,
+          };
+        });
+        if (requirements.some(req => !req.category_id)) {
+          event.preventDefault();
+          alert('Bitte wähle für jede Zeile eine Kategorie aus.');
+          return;
+        }
+        requirementsInput.value = JSON.stringify(requirements);
+      });
+    })();
+  </script>
+{% endblock %}

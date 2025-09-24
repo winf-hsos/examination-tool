@@ -7,6 +7,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -65,6 +66,7 @@ class Task(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     category: Mapped[str] = mapped_column(String(255), nullable=False)
     subcategory: Mapped[str | None] = mapped_column(String(255))
+    difficulty: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
     statement_markdown: Mapped[str] = mapped_column(Text, nullable=False)
     hints_markdown: Mapped[str | None] = mapped_column(Text)
     solution_markdown: Mapped[str | None] = mapped_column(Text)
@@ -91,6 +93,7 @@ class TaskImage(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"))
     file_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    thumbnail_path: Mapped[str | None] = mapped_column(String(500))
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     mime_type: Mapped[str] = mapped_column(String(100), nullable=False)
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -124,25 +127,22 @@ class Category(Base):
     )
 
 
-class CategoryRequirement(Base):
-    __tablename__ = "category_requirements"
-    __table_args__ = (UniqueConstraint("category", name="uq_category"),)
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    category: Mapped[str] = mapped_column(String(255), nullable=False)
-    required_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-
-
 class ExamSession(Base):
     __tablename__ = "exam_sessions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    group_id: Mapped[int] = mapped_column(ForeignKey("student_groups.id", ondelete="CASCADE"))
+    group_id: Mapped[int | None] = mapped_column(
+        ForeignKey("student_groups.id", ondelete="CASCADE"), nullable=True
+    )
+    configuration_id: Mapped[int | None] = mapped_column(
+        ForeignKey("exam_configurations.id", ondelete="SET NULL"), nullable=True
+    )
     started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    demo_label: Mapped[str | None] = mapped_column(String(255))
 
     group: Mapped[StudentGroup] = relationship("StudentGroup", back_populates="exams")
     assignments: Mapped[List[ExamTaskAssignment]] = relationship(
@@ -150,6 +150,9 @@ class ExamSession(Base):
         back_populates="exam",
         order_by="ExamTaskAssignment.position",
         cascade="all, delete-orphan",
+    )
+    configuration: Mapped[ExamConfiguration | None] = relationship(
+        "ExamConfiguration", back_populates="sessions"
     )
 
 
@@ -167,6 +170,57 @@ class ExamTaskAssignment(Base):
     task: Mapped[Task] = relationship("Task")
 
 
+class ExamConfiguration(Base):
+    __tablename__ = "exam_configurations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    target_difficulty: Mapped[float] = mapped_column(Float, nullable=False, default=2.0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    requirements: Mapped[List["ExamConfigurationRequirement"]] = relationship(
+        "ExamConfigurationRequirement",
+        back_populates="configuration",
+        cascade="all, delete-orphan",
+        order_by="ExamConfigurationRequirement.position",
+    )
+    sessions: Mapped[List[ExamSession]] = relationship(
+        "ExamSession", back_populates="configuration"
+    )
+
+
+class ExamConfigurationRequirement(Base):
+    __tablename__ = "exam_configuration_requirements"
+    __table_args__ = (
+        UniqueConstraint(
+            "configuration_id", "category_id", "subcategory_id", name="uq_configuration_category"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    configuration_id: Mapped[int] = mapped_column(
+        ForeignKey("exam_configurations.id", ondelete="CASCADE"), nullable=False
+    )
+    category_id: Mapped[int] = mapped_column(
+        ForeignKey("categories.id", ondelete="CASCADE"), nullable=False
+    )
+    subcategory_id: Mapped[int | None] = mapped_column(
+        ForeignKey("categories.id", ondelete="SET NULL"), nullable=True
+    )
+    question_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    configuration: Mapped[ExamConfiguration] = relationship(
+        "ExamConfiguration", back_populates="requirements"
+    )
+    category: Mapped[Category] = relationship(
+        "Category", foreign_keys=[category_id], lazy="joined"
+    )
+    subcategory: Mapped[Category | None] = relationship(
+        "Category", foreign_keys=[subcategory_id], lazy="joined"
+    )
+
+
 __all__: Sequence[str] = (
     "Student",
     "StudentGroup",
@@ -174,7 +228,8 @@ __all__: Sequence[str] = (
     "TaskImage",
     "ExamSession",
     "ExamTaskAssignment",
-    "CategoryRequirement",
     "Category",
+    "ExamConfiguration",
+    "ExamConfigurationRequirement",
     "task_dependencies",
 )
