@@ -59,13 +59,40 @@
   </section>
 
   <section class="card">
+    <h2>Studierendenansicht</h2>
+    <p>Nutze diesen Link, um die Ansicht für Studierende auf einem separaten Bildschirm anzuzeigen. Bei neuen Prüfungen aktualisiert sich die Ansicht automatisch.</p>
+    <code class="share-link">{{ student_live_url }}</code>
+    <div class="task-metadata" style="margin-top:0.5rem;">
+      {% if active_exam %}
+        Aktive Prüfung: {{ active_exam.group.label }} (gestartet am {{ active_exam.started_at.strftime('%d.%m.%Y %H:%M') }} Uhr)
+      {% else %}
+        Aktuell ist keine Prüfung aktiv.
+      {% endif %}
+    </div>
+    <a class="button secondary" href="{{ student_live_url }}" target="_blank">Studierendenansicht öffnen</a>
+  </section>
+
+  <section class="card">
     <h2>Kategorien</h2>
-    {% if not category_requirements %}
+    {% if not category_tree %}
       <p>Definiere Kategorien, um die Auswahl der Aufgaben zu steuern.</p>
     {% else %}
-      <ul>
-        {% for category in category_requirements %}
-          <li><strong>{{ category.category }}</strong>: {{ category.required_count }} Aufgabe(n)</li>
+      <ul class="category-summary">
+        {% for category in category_tree %}
+          {% set requirement = requirements_map.get(category.name) %}
+          <li>
+            <strong>{{ category.name }}</strong>
+            {% if requirement %}
+              · {{ requirement.required_count }} Aufgabe(n)
+            {% endif %}
+            {% if category.children %}
+              <ul>
+                {% for subcategory in category.children %}
+                  <li>{{ subcategory.name }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </li>
         {% endfor %}
       </ul>
     {% endif %}

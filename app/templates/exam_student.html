@@ -12,7 +12,7 @@
 {% endblock %}
 
 {% block content %}
-  <section class="card" id="student-app" data-exam-id="{{ exam_id }}">
+  <section class="card" id="student-app" data-exam-id="{{ exam_id if exam_id else '' }}" data-live="{{ 'true' if live_mode else 'false' }}">
     <h2 id="group-label">Prüfung</h2>
     <div class="task-metadata">Diese Ansicht blendet Hinweise und Lösungen automatisch aus.</div>
     <div id="tasks" class="exam-layout" style="margin-top:1.5rem;">
@@ -27,15 +27,28 @@
     const tasksContainer = document.getElementById('tasks');
     const groupLabel = document.getElementById('group-label');
     const examId = appElement.dataset.examId;
+    const isLive = appElement.dataset.live === 'true';
 
     async function fetchExam() {
       try {
-        const response = await fetch(`/api/exams/${examId}`);
+        const endpoint = isLive && !appElement.dataset.examId
+          ? '/api/exams/active'
+          : `/api/exams/${appElement.dataset.examId || examId}`;
+        const response = await fetch(endpoint);
         if (!response.ok) {
+          if (response.status === 404 && isLive) {
+            groupLabel.textContent = 'Prüfung';
+            tasksContainer.innerHTML = '<p class="task-metadata">Aktuell ist keine Prüfung aktiv.</p>';
+            appElement.dataset.examId = '';
+            return;
+          }
           throw new Error('Fehler beim Laden der Aufgaben');
         }
         const payload = await response.json();
         renderExam(payload);
+        if (isLive) {
+          appElement.dataset.examId = payload.exam_id;
+        }
       } catch (error) {
         tasksContainer.innerHTML = `<p class="alert error">${error.message}</p>`;
       }
@@ -53,6 +66,13 @@
             <h2>${index + 1}. ${task.title}</h2>
             <div class="task-metadata">${task.category}${task.subcategory ? ' · ' + task.subcategory : ''}</div>
             <div class="markdown">${task.statement_html}</div>
+            ${task.image_urls && task.image_urls.length ? `
+              <div class="task-images">
+                ${task.image_urls
+                  .map((url, imageIndex) => `<figure><img src="${url}" alt="Aufgabenbild ${imageIndex + 1}" /></figure>`)
+                  .join('')}
+              </div>
+            ` : ''}
           </article>
         `)
         .join('');

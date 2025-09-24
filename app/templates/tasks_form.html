@@ -11,36 +11,115 @@
 {% block content %}
   <section class="card">
     <h2>{{ page_title }}</h2>
-    <form method="post" action="{% if task %}/tasks/{{ task.id }}{% else %}/tasks{% endif %}">
+    {% if not categories %}
+      <p class="alert warning">
+        Es wurden noch keine Kategorien definiert. Lege zunächst Kategorien an, bevor du Aufgaben erstellst.
+      </p>
+    {% endif %}
+    <form
+      id="task-form"
+      method="post"
+      enctype="multipart/form-data"
+      action="{% if task %}/tasks/{{ task.id }}{% else %}/tasks{% endif %}"
+    >
       <div class="form-row">
         <label for="title">Titel</label>
         <input id="title" type="text" name="title" value="{{ task.title if task else '' }}" required />
       </div>
       <div class="form-row">
-        <label for="category">Kategorie</label>
-        <input id="category" type="text" name="category" value="{{ task.category if task else '' }}" required />
+        <label for="category_id">Kategorie</label>
+        <select id="category_id" name="category_id" required>
+          <option value="" disabled {% if not selected_category_id %}selected{% endif %}>Kategorie wählen</option>
+          {% for category in categories %}
+            <option value="{{ category.id }}" {% if selected_category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+          {% endfor %}
+        </select>
       </div>
       <div class="form-row">
-        <label for="subcategory">Unterkategorie</label>
-        <input id="subcategory" type="text" name="subcategory" value="{{ task.subcategory if task and task.subcategory else '' }}" />
+        <label for="subcategory_id">Unterkategorie</label>
+        <select
+          id="subcategory_id"
+          name="subcategory_id"
+          data-selected="{{ selected_subcategory_id if selected_subcategory_id else '' }}"
+        >
+          <option value="" {% if not selected_subcategory_id %}selected{% endif %}>Keine Unterkategorie</option>
+          {% if selected_category_id %}
+            {% for category in categories %}
+              {% if category.id == selected_category_id %}
+                {% for subcategory in category.children %}
+                  <option value="{{ subcategory.id }}" {% if selected_subcategory_id == subcategory.id %}selected{% endif %}>{{ subcategory.name }}</option>
+                {% endfor %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+        </select>
       </div>
-      <div class="form-row">
+      <div class="form-row markdown-editor">
         <label for="statement_markdown">Aufgabe (Markdown)</label>
-        <textarea id="statement_markdown" name="statement_markdown" required>{{ task.statement_markdown if task else '' }}</textarea>
+        <div class="markdown-editor-grid">
+          <textarea
+            id="statement_markdown"
+            name="statement_markdown"
+            data-preview-target="statement-preview"
+            required
+          >{{ task.statement_markdown if task else '' }}</textarea>
+          <div class="markdown-preview" id="statement-preview"></div>
+        </div>
       </div>
-      <div class="form-row">
+      <div class="form-row markdown-editor">
         <label for="hints_markdown">Hinweise (Markdown, optional)</label>
-        <textarea id="hints_markdown" name="hints_markdown">{{ task.hints_markdown if task and task.hints_markdown else '' }}</textarea>
+        <div class="markdown-editor-grid">
+          <textarea
+            id="hints_markdown"
+            name="hints_markdown"
+            data-preview-target="hints-preview"
+          >{{ task.hints_markdown if task and task.hints_markdown else '' }}</textarea>
+          <div class="markdown-preview" id="hints-preview"></div>
+        </div>
       </div>
-      <div class="form-row">
+      <div class="form-row markdown-editor">
         <label for="solution_markdown">Lösung (Markdown, optional)</label>
-        <textarea id="solution_markdown" name="solution_markdown">{{ task.solution_markdown if task and task.solution_markdown else '' }}</textarea>
+        <div class="markdown-editor-grid">
+          <textarea
+            id="solution_markdown"
+            name="solution_markdown"
+            data-preview-target="solution-preview"
+          >{{ task.solution_markdown if task and task.solution_markdown else '' }}</textarea>
+          <div class="markdown-preview" id="solution-preview"></div>
+        </div>
       </div>
       <div class="form-row">
         <label for="dependency_ids">Abhängigkeiten (IDs, durch Komma getrennt)</label>
-        <input id="dependency_ids" type="text" name="dependency_ids" value="{% if task and task.dependencies %}{% for dep in task.dependencies %}{{ dep.id }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}" />
+        <input
+          id="dependency_ids"
+          type="text"
+          name="dependency_ids"
+          value="{% if task and task.dependencies %}{% for dep in task.dependencies %}{{ dep.id }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}"
+        />
         <small class="task-metadata">Wähle IDs aus der folgenden Liste, falls die Aufgabe von anderen Aufgaben abhängig ist.</small>
       </div>
+      <div class="form-row">
+        <label for="images">Anhänge (Bilder)</label>
+        <input id="images" type="file" name="images" accept="image/*" multiple />
+        <small class="task-metadata">Unterstützt PNG, JPG und andere gängige Bildformate. Mehrere Dateien können gleichzeitig ausgewählt werden.</small>
+      </div>
+      {% if task and task.images %}
+        <div class="form-row">
+          <label>Vorhandene Bilder</label>
+          <div class="image-gallery">
+            {% for image in task.images %}
+              <div class="image-gallery-item">
+                <img src="{{ url_for('static', path=image.file_path) }}" alt="{{ image.original_filename }}" />
+                <label class="remove-toggle">
+                  <input type="checkbox" name="remove_image_ids" value="{{ image.id }}" />
+                  Entfernen
+                </label>
+                <div class="task-metadata">{{ image.original_filename }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
       {% if all_tasks %}
         <div class="form-row">
           <label>Verfügbare Aufgaben</label>
@@ -55,4 +134,103 @@
       <a class="button secondary" href="/tasks">Abbrechen</a>
     </form>
   </section>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    const categoryOptions = {{ category_options_json | safe }};
+    const categorySelect = document.getElementById('category_id');
+    const subcategorySelect = document.getElementById('subcategory_id');
+
+    function populateSubcategories(selectedCategoryId) {
+      const currentSelection = subcategorySelect.dataset.selected || '';
+      subcategorySelect.innerHTML = '';
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = 'Keine Unterkategorie';
+      if (!currentSelection) {
+        defaultOption.selected = true;
+      }
+      subcategorySelect.appendChild(defaultOption);
+
+      const category = categoryOptions.find((entry) => entry.id === Number(selectedCategoryId));
+      if (!category) {
+        subcategorySelect.dataset.selected = '';
+        return;
+      }
+
+      category.subcategories.forEach((subcategory) => {
+        const option = document.createElement('option');
+        option.value = String(subcategory.id);
+        option.textContent = subcategory.name;
+        if (Number(currentSelection) === subcategory.id) {
+          option.selected = true;
+        }
+        subcategorySelect.appendChild(option);
+      });
+    }
+
+    if (categorySelect) {
+      categorySelect.addEventListener('change', (event) => {
+        subcategorySelect.dataset.selected = '';
+        populateSubcategories(event.target.value);
+      });
+
+      if (categorySelect.value) {
+        populateSubcategories(categorySelect.value);
+      }
+    }
+
+    function setupMarkdownPreview(textarea) {
+      const previewId = textarea.dataset.previewTarget;
+      const previewElement = document.getElementById(previewId);
+      if (!previewElement) {
+        return;
+      }
+
+      let timeoutId = null;
+      let abortController = null;
+
+      async function renderPreview() {
+        const content = textarea.value;
+        if (abortController) {
+          abortController.abort();
+        }
+        abortController = new AbortController();
+        try {
+          const response = await fetch('/api/markdown/preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content }),
+            signal: abortController.signal,
+          });
+          if (!response.ok) {
+            throw new Error('Fehler bei der Vorschau');
+          }
+          const payload = await response.json();
+          previewElement.innerHTML = payload.html || '';
+          if (window.MathJax && window.MathJax.typesetPromise) {
+            window.MathJax.typesetPromise([previewElement]);
+          }
+        } catch (error) {
+          if (error.name === 'AbortError') {
+            return;
+          }
+          previewElement.innerHTML = '<p class="task-metadata">Keine Vorschau verfügbar.</p>';
+        }
+      }
+
+      const scheduleRender = () => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        timeoutId = setTimeout(renderPreview, 250);
+      };
+
+      textarea.addEventListener('input', scheduleRender);
+      renderPreview();
+    }
+
+    document.querySelectorAll('.markdown-editor textarea').forEach(setupMarkdownPreview);
+  </script>
 {% endblock %}

@@ -83,6 +83,7 @@ class ExamTaskOut(BaseModel):
     hints_html: Optional[str]
     solution_html: Optional[str]
     position: int
+    image_urls: List[str] = []
 
 
 class ExamSessionOut(BaseModel):
@@ -90,4 +91,8 @@ class ExamSessionOut(BaseModel):
     group: StudentGroupRead
     tasks: List[ExamTaskOut]
     started_at: datetime
+
+
+class MarkdownPreviewRequest(BaseModel):
+    content: str
 

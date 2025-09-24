@@ -3,7 +3,17 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Sequence
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -67,6 +77,51 @@ class Task(Base):
         backref="dependents",
         lazy="joined",
     )
+    images: Mapped[List["TaskImage"]] = relationship(
+        "TaskImage",
+        back_populates="task",
+        cascade="all, delete-orphan",
+        order_by="TaskImage.position",
+    )
+
+
+class TaskImage(Base):
+    __tablename__ = "task_images"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"))
+    file_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    task: Mapped["Task"] = relationship("Task", back_populates="images")
+
+
+class Category(Base):
+    __tablename__ = "categories"
+    __table_args__ = (
+        UniqueConstraint("name", "parent_id", name="uq_category_parent"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    parent_id: Mapped[int | None] = mapped_column(
+        ForeignKey("categories.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+
+    parent: Mapped["Category"] = relationship(
+        "Category",
+        remote_side="Category.id",
+        back_populates="children",
+    )
+    children: Mapped[List["Category"]] = relationship(
+        "Category",
+        back_populates="parent",
+        cascade="all, delete-orphan",
+        order_by="Category.name",
+    )
 
 
 class CategoryRequirement(Base):
@@ -87,6 +142,7 @@ class ExamSession(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     group: Mapped[StudentGroup] = relationship("StudentGroup", back_populates="exams")
     assignments: Mapped[List[ExamTaskAssignment]] = relationship(
@@ -115,8 +171,10 @@ __all__: Sequence[str] = (
     "Student",
     "StudentGroup",
     "Task",
+    "TaskImage",
     "ExamSession",
     "ExamTaskAssignment",
     "CategoryRequirement",
+    "Category",
     "task_dependencies",
 )

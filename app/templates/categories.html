@@ -5,7 +5,7 @@
 {% block content %}
   <section class="card">
     <h2>Kategorien verwalten</h2>
-    <p>Lege fest, wie viele Aufgaben pro Kategorie zufällig ausgewählt werden. Jede Kategorie kann beliebig viele Aufgaben umfassen.</p>
+    <p>Lege fest, wie viele Aufgaben pro Kategorie zufällig ausgewählt werden, und verwalte passende Unterkategorien.</p>
     <form method="post" action="/categories" style="margin-bottom:1.5rem;">
       <h3>Neue Kategorie hinzufügen</h3>
       <div class="form-row">
@@ -22,35 +22,69 @@
     {% if not categories %}
       <p>Noch keine Kategorien angelegt.</p>
     {% else %}
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Kategorie</th>
-            <th>Aufgabenanzahl</th>
-            <th>Aktionen</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for category in categories %}
-            <tr>
-              <td>{{ category.category }}</td>
-              <td>
+      <div class="category-grid">
+        {% for category in categories %}
+          {% set requirement = requirements.get(category.name) %}
+          <article class="category-card">
+            <header>
+              <h3>{{ category.name }}</h3>
+              {% if requirement %}
                 <form method="post" action="/categories">
-                  <input type="hidden" name="category_id" value="{{ category.id }}" />
-                  <input type="hidden" name="category" value="{{ category.category }}" />
-                  <input type="number" name="required_count" value="{{ category.required_count }}" min="1" required />
+                  <input type="hidden" name="category_id" value="{{ requirement.id }}" />
+                  <input type="hidden" name="category" value="{{ requirement.category }}" />
+                  <label>
+                    Aufgaben pro Prüfung
+                    <input type="number" name="required_count" value="{{ requirement.required_count }}" min="1" required />
+                  </label>
                   <button type="submit" class="secondary">Speichern</button>
                 </form>
-              </td>
-              <td>
-                <form method="post" action="/categories/{{ category.id }}/delete" onsubmit="return confirm('Kategorie wirklich löschen?');">
-                  <button type="submit" class="danger">Löschen</button>
-                </form>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+              {% endif %}
+            </header>
+            <div class="subcategory-list">
+              <h4>Unterkategorien</h4>
+              {% if not category.children %}
+                <p class="task-metadata">Noch keine Unterkategorien angelegt.</p>
+              {% else %}
+                <ul>
+                  {% for subcategory in category.children %}
+                    <li>
+                      {{ subcategory.name }}
+                      <form
+                        method="post"
+                        action="/categories/{{ category.id }}/subcategories/{{ subcategory.id }}/delete"
+                        onsubmit="return confirm('Unterkategorie wirklich löschen?');"
+                      >
+                        <button type="submit" class="danger">Löschen</button>
+                      </form>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+              <form method="post" action="/categories/{{ category.id }}/subcategories" class="add-subcategory-form">
+                <label for="new-subcategory-{{ category.id }}">Neue Unterkategorie</label>
+                <input
+                  id="new-subcategory-{{ category.id }}"
+                  type="text"
+                  name="name"
+                  placeholder="Bezeichnung"
+                  required
+                />
+                <button type="submit" class="secondary">Hinzufügen</button>
+              </form>
+            </div>
+            {% if requirement %}
+              <form
+                method="post"
+                action="/categories/{{ requirement.id }}/delete"
+                onsubmit="return confirm('Kategorie wirklich löschen? Alle Unterkategorien werden entfernt.');"
+                class="delete-category-form"
+              >
+                <button type="submit" class="danger">Kategorie löschen</button>
+              </form>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
     {% endif %}
   </section>
 {% endblock %}
