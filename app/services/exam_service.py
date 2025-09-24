@@ -218,6 +218,7 @@ def build_exam_payload(exam: ExamSession, include_solutions: bool) -> dict:
                 if include_solutions
                 else None,
                 "position": assignment.position,
+                "difficulty": task.difficulty,
                 "image_urls": [f"/static/{image.file_path}" for image in task.images],
             }
         )

@@ -4,50 +4,76 @@
 
 {% block content %}
   <section class="card">
-    <header style="display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;">
-      <div>
-        <h2>Prüfung für {{ exam.group.label }}</h2>
-        <div class="task-metadata">
-          Studierende:
-          {% for student in exam.group.students %}
-            {{ student.full_name }}{% if not loop.last %}, {% endif %}
-          {% endfor %}
+    <div class="card-content">
+      <div class="exam-header">
+        <div class="exam-header__meta">
+          <h2 class="card-title" style="margin: 0;">Prüfung für {{ exam.group.label }}</h2>
+          <div class="task-metadata">
+            <span class="material-icons" aria-hidden="true">group</span>
+            Studierende:
+            {% for student in exam.group.students %}
+              {{ student.full_name }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+          </div>
+          <div class="task-metadata">
+            <span class="material-icons" aria-hidden="true">schedule</span>
+            Gestartet am {{ exam.started_at.strftime('%d.%m.%Y %H:%M') }} Uhr
+          </div>
         </div>
-        <div class="task-metadata">Gestartet am {{ exam.started_at.strftime('%d.%m.%Y %H:%M') }} Uhr</div>
+        <div class="exam-toolbar">
+          <a class="btn btn-secondary waves-effect" target="_blank" href="{{ request.url_for('show_exam_live') }}">
+            <span class="material-icons left" aria-hidden="true">open_in_new</span>
+            Studierendenansicht öffnen
+          </a>
+          <span class="task-metadata">
+            <span class="material-icons" aria-hidden="true">link</span>
+            Link teilen:
+            <code class="share-link">{{ request.url_for('show_exam_live') }}</code>
+          </span>
+          <form
+            method="post"
+            action="/exams/{{ exam.exam_id }}/regenerate"
+            onsubmit="return confirm('Aufgaben neu auslosen?');"
+          >
+            <button type="submit" class="btn btn-danger waves-effect">
+              <span class="material-icons left" aria-hidden="true">refresh</span>
+              Neue Aufgaben auslosen
+            </button>
+          </form>
+        </div>
       </div>
-      <div style="display:flex; flex-direction:column; gap:0.5rem; align-items:flex-end;">
-        <a class="button secondary" target="_blank" href="{{ request.url_for('show_exam_live') }}">Studierendenansicht öffnen</a>
-        <span class="task-metadata">Link teilen: <code class="share-link">{{ request.url_for('show_exam_live') }}</code></span>
-        <form method="post" action="/exams/{{ exam.exam_id }}/regenerate" onsubmit="return confirm('Aufgaben neu auslosen?');">
-          <button type="submit">Neue Aufgaben auslosen</button>
-        </form>
-      </div>
-    </header>
-    <div class="exam-layout" style="margin-top:1.5rem;">
-      {% for task in exam.tasks %}
-        <article class="exam-task">
-          <h2>{{ loop.index }}. {{ task.title }}</h2>
-          <div class="task-metadata">{{ task.category }}{% if task.subcategory %} · {{ task.subcategory }}{% endif %}</div>
-          <div class="markdown">{{ task.statement_html | safe }}</div>
-          {% if task.image_urls %}
-            <div class="task-images">
-              {% for image_url in task.image_urls %}
-                <figure>
-                  <img src="{{ image_url }}" alt="Aufgabenbild {{ loop.index }}" />
-                </figure>
-              {% endfor %}
+
+      <div class="exam-task-grid" style="margin-top: 2rem;">
+        {% for task in exam.tasks %}
+          <article class="exam-task-card">
+            <h2>{{ loop.index }}. {{ task.title }}</h2>
+            <div class="task-metadata">
+              <span class="material-icons" aria-hidden="true">category</span>
+              {{ task.category }}{% if task.subcategory %} · {{ task.subcategory }}{% endif %}
+              <span class="material-icons" aria-hidden="true">insights</span>
+              Schwierigkeitsstufe {{ task.difficulty or '–' }}
             </div>
-          {% endif %}
-          {% if task.hints_html %}
-            <div class="section-title">Hinweise</div>
-            <div class="markdown">{{ task.hints_html | safe }}</div>
-          {% endif %}
-          {% if task.solution_html %}
-            <div class="section-title">Lösung</div>
-            <div class="markdown">{{ task.solution_html | safe }}</div>
-          {% endif %}
-        </article>
-      {% endfor %}
+            <div class="markdown">{{ task.statement_html | safe }}</div>
+            {% if task.image_urls %}
+              <div class="task-images">
+                {% for image_url in task.image_urls %}
+                  <figure>
+                    <img src="{{ image_url }}" alt="Aufgabenbild {{ loop.index }}" />
+                  </figure>
+                {% endfor %}
+              </div>
+            {% endif %}
+            {% if task.hints_html %}
+              <div class="section-title">Hinweise</div>
+              <div class="markdown">{{ task.hints_html | safe }}</div>
+            {% endif %}
+            {% if task.solution_html %}
+              <div class="section-title">Lösung</div>
+              <div class="markdown">{{ task.solution_html | safe }}</div>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
     </div>
   </section>
 {% endblock %}
